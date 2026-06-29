@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ご来場受付</title>
+<style>
+  :root{
+    --moss:#2f4538;      /* 深い森の緑(基調) */
+    --moss-light:#4a6b54;
+    --bark:#6b5840;      /* 木の幹色(アクセント) */
+    --cream:#f7f3ea;     /* 紙/テント生地のようなオフホワイト */
+    --ember:#c1622d;     /* 焚き火のオレンジ(強調・選択状態) */
+    --line:#dcd5c4;
+    --ink:#2b2b26;
+    --danger:#a63d2f;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select:none;
+  }
+  #app{
+    position:relative;
+    height:100%;
+    width:100%;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ===== ヘッダー / 進捗バー ===== */
+  header{
+    padding:18px 28px 14px;
+    background:var(--cream);
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .brand h1{
+    font-size:20px;
+    margin:0;
+    letter-spacing:.05em;
+    color:var(--moss);
+    font-weight:700;
+  }
+  .brand .sub{
+    font-size:12px;
+    color:#8a8369;
+    letter-spacing:.1em;
+  }
+  .progress-track{
+    display:flex;
+    gap:6px;
+  }
+  .progress-seg{
+    flex:1;
+    height:6px;
+    border-radius:4px;
+    background:var(--line);
+    overflow:hidden;
+    position:relative;
+  }
+  .progress-seg .fill{
+    position:absolute;
+    inset:0;
+    background:var(--ember);
+    transform:translateX(-100%);
+    transition:transform .45s cubic-bezier(.4,0,.2,1);
+  }
+  .progress-seg.done .fill{transform:translateX(0);}
+  .progress-seg.current .fill{transform:translateX(0);}
+  .step-label{
+    margin-top:8px;
+    font-size:13px;
+    color:#8a8369;
+  }
+
+  /* ===== ステージ(中身) ===== */
+  main{
+    flex:1;
+    position:relative;
+    overflow:hidden;
+  }
+  .stage{
+    position:absolute;
+    inset:0;
+    padding:20px 32px 24px;
+    display:flex;
+    flex-direction:column;
+    transform:translateX(40px);
+    opacity:0;
+    transition:transform .38s cubic-bezier(.22,1,.36,1), opacity .3s ease;
+    pointer-events:none;
+    overflow-y:auto;
+  }
+  .stage.active{
+    transform:translateX(0);
+    opacity:1;
+    pointer-events:auto;
+  }
+  .stage.leaving{
+    transform:translateX(-40px);
+    opacity:0;
+  }
+  .q-title{
+    font-size:26px;
+    font-weight:700;
+    color:var(--moss);
+    margin:6px 0 4px;
+  }
+  .q-hint{
+    font-size:14px;
+    color:#8a8369;
+    margin:0 0 22px;
+  }
+  .field-grid{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    max-width:640px;
+  }
+  label.field-label{
+    font-size:14px;
+    color:var(--bark);
+    font-weight:600;
+    margin-bottom:6px;
+    display:block;
+  }
+  input[type=text]{
+    width:100%;
+    font-size:22px;
+    padding:16px 18px;
+    border:2px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+    color:var(--ink);
+    outline:none;
+    transition:border-color .2s;
+    font-family:inherit;
+  }
+  input[type=text]:focus{
+    border-color:var(--ember);
+  }
+
+  /* ===== 選択カード ===== */
+  .card-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+    max-width:900px;
+  }
+  .card-grid.cols-2{grid-template-columns:repeat(2,1fr);}
+  .opt-card{
+    border:2px solid var(--line);
+    background:#fff;
+    border-radius:16px;
+    padding:22px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, transform .1s, background .15s;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    min-height:130px;
+    justify-content:center;
+  }
+  .opt-card .ico{font-size:34px;line-height:1;}
+  .opt-card .label{font-size:17px;font-weight:700;color:var(--ink);}
+  .opt-card .desc{font-size:12px;color:#8a8369;}
+  .opt-card:active{transform:scale(.97);}
+  .opt-card.selected{
+    border-color:var(--ember);
+    background:#fdf1e9;
+  }
+  .opt-card.selected .label{color:var(--ember);}
+
+  /* ===== 人数 ステッパー ===== */
+  .stepper-list{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+    max-width:520px;
+  }
+  .stepper-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#fff;
+    border:2px solid var(--line);
+    border-radius:14px;
+    padding:16px 20px;
+  }
+  .stepper-row .meta .label{font-size:18px;font-weight:700;}
+  .stepper-row .meta .sub{font-size:12px;color:#8a8369;}
+  .stepper-ctrl{display:flex;align-items:center;gap:18px;}
+  .stepper-btn{
+    width:46px;height:46px;border-radius:50%;
+    border:2px solid var(--moss);
+    background:var(--cream);
+    color:var(--moss);
+    font-size:24px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .stepper-btn:active{background:var(--moss-light);color:#fff;}
+  .stepper-val{font-size:26px;font-weight:700;min-width:40px;text-align:center;}
+
+  /* ===== ボタン(下部) ===== */
+  footer{
+    flex-shrink:0;
+    padding:16px 32px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-top:1px solid var(--line);
+    background:var(--cream);
+  }
+  .btn{
+    font-size:17px;
+    font-weight:700;
+    padding:15px 30px;
+    border-radius:12px;
+    border:none;
+    cursor:pointer;
+    transition:opacity .15s, transform .1s;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{
+    background:var(--ember);
+    color:#fff;
+  }
+  .btn-primary:disabled{
+    background:#d9c9b8;
+    cursor:not-allowed;
+  }
+  .btn-ghost{
+    background:transparent;
+    color:var(--bark);
+    border:2px solid var(--line);
+  }
+  .btn-ghost:disabled{opacity:0;pointer-events:none;}
+
+  /* ===== 確認画面 ===== */
+  .confirm-list{
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    max-width:640px;
+    background:#fff;
+  }
+  .confirm-row{
+    display:flex;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    font-size:15px;
+  }
+  .confirm-row:last-child{border-bottom:none;}
+  .confirm-row .k{width:130px;color:#8a8369;flex-shrink:0;}
+  .confirm-row .v{font-weight:700;color:var(--ink);}
+
+  /* ===== サンキュー画面 ===== */
+  .thanks{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;gap:10px;
+  }
+  .thanks .big{font-size:54px;}
+  .thanks h2{font-size:28px;color:var(--moss);margin:6px 0;}
+  .thanks p{color:#8a8369;font-size:15px;}
+  .reset-bar{
+    margin-top:24px;font-size:13px;color:#b5ad94;
+  }
+
+  /* ===== 管理者 ===== */
+  .admin-fab{
+    position:fixed;
+    bottom:14px;
+    right:14px;
+    width:30px;height:30px;
+    border-radius:50%;
+    background:transparent;
+    border:none;
+    opacity:.18;
+    font-size:16px;
+    z-index:50;
+  }
+  .admin-overlay{
+    position:fixed;inset:0;background:rgba(20,20,16,.6);
+    display:flex;align-items:center;justify-content:center;
+    z-index:100;
+  }
+  .admin-panel{
+    background:#fff;border-radius:18px;
+    width:90%;max-width:820px;max-height:82%;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .admin-head{
+    padding:18px 22px;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .admin-head h3{margin:0;color:var(--moss);}
+  .admin-body{flex:1;overflow:auto;padding:0 22px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th{color:#8a8369;font-weight:600;position:sticky;top:0;background:#fff;}
+  .admin-foot{
+    padding:14px 22px;border-top:1px solid var(--line);
+    display:flex;gap:10px;justify-content:flex-end;
+  }
+  .small-btn{
+    font-size:13px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);
+    background:var(--cream);cursor:pointer;
+  }
+  .small-btn.danger{color:var(--danger);border-color:var(--danger);background:#fff;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<button class="admin-fab" onclick="openAdmin()">⚙</button>
+
+<script>
+/* ====================================================================
+   ▼ カスタマイズ用の設定（このCONFIGの中だけ書き換えればだいたいOK）
+   ==================================================================== */
+const CONFIG = {
+  facilities: [
+    { id:'cottage',   label:'コテージ',     ico:'🏠', desc:'宿泊棟' , camp:false},
+    { id:'bbq',       label:'バーベキュー', ico:'🍖', desc:'日帰り利用' , camp:false},
+    { id:'autocamp',  label:'オートキャンプ', ico:'🚐', desc:'車横付け' , camp:true},
+    { id:'freecamp',  label:'フリーキャンプ', ico:'⛺', desc:'区画自由' , camp:true},
+    { id:'meeting',   label:'会議室',       ico:'🗂️', desc:'研修・会議' , camp:false},
+  ],
+  // 予約方法
+  reservationMethods: [
+    { id:'web',   label:'ネット予約', ico:'💻' },
+    { id:'phone', label:'電話予約',   ico:'☎️' },
+  ],
+  // 支払い方法は予約方法ごとに変える
+  paymentMethods: {
+    web:   [
+      { id:'web_paid',   label:'ネットで決済済み', ico:'✅' },
+      { id:'onsite_card',label:'現地でカード払い', ico:'💳' },
+      { id:'onsite_cash',label:'現地で現金払い',   ico:'💴' },
+    ],
+    phone: [
+      { id:'onsite_cash', label:'現地で現金払い', ico:'💴' },
+      { id:'onsite_card', label:'現地でカード払い', ico:'💳' },
+      { id:'bank',        label:'銀行振込',       ico:'🏦' },
+    ],
+  },
+};
+
+// ▼ スプレッドシートに保存するためのGAS WebアプリURL
+//   GASで「デプロイ」した後に出てくるURLをここに貼ってください。
+//   空のままだと、スプレッドシートには保存されず、これまでの管理者画面用の保存のみ行われます。
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxn761azY4h4wPdkfKPelsmiN8K2mxoOe76CmE5CRYU2Hu3Zkc0mPUneUTSqkPzGUza/exec";
+/* ==================================================================== */
+
+let state = {
+  name:'', address:'',
+  facility:'',
+  campCarNumber:'', campTent:'', campPet:'', campFire:'',
+  adults:1, children:0, infants:0,
+  nights:1,
+  reservation:'',
+  payment:'',
+};
+
+// 動的にステップ一覧を組み立てる（キャンプを選んだ時だけ3ページ目が入る）
+function buildSteps(){
+  const steps = ['name','facility'];
+  const f = CONFIG.facilities.find(x=>x.id===state.facility);
+  if(f && f.camp) steps.push('campDetail');
+  steps.push('people','nights','reservation','payment','confirm');
+  return steps;
+}
+
+let stepIndex = 0;
+let animLock = false;
+
+function render(){
+  const steps = buildSteps();
+  if(stepIndex > steps.length-1) stepIndex = steps.length-1;
+  const total = steps.length;
+  const key = steps[stepIndex];
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <header>
+      <div class="brand">
+        <h1>ご来場受付</h1>
+        <div class="sub">STEP ${stepIndex+1} / ${total}</div>
+      </div>
+      <div class="progress-track">
+        ${steps.map((s,i)=>`<div class="progress-seg ${i<stepIndex?'done':''} ${i===stepIndex?'current':''}"><div class="fill"></div></div>`).join('')}
+      </div>
+      <div class="step-label">${stepLabel(key)}</div>
+    </header>
+    <main><div class="stage active" id="stage">${renderStage(key)}</div></main>
+    <footer>
+      <button class="btn btn-ghost" id="backBtn" ${stepIndex===0?'disabled':''} onclick="goBack()">戻る</button>
+      <button class="btn btn-primary" id="nextBtn" onclick="goNext()">${key==='confirm' ? 'この内容で受付する' : '次へ'}</button>
+    </footer>
+  `;
+  wireStage(key);
+  updateNextEnabled(key);
+}
+
+function stepLabel(key){
+  return ({
+    name:'お客様情報', facility:'ご利用施設', campDetail:'キャンプのご利用詳細',
+    people:'ご利用人数', nights:'宿泊数', reservation:'ご予約方法',
+    payment:'お支払い方法', confirm:'内容のご確認'
+  })[key] || '';
+}
+
+function renderStage(key){
+  switch(key){
+    case 'name': return `
+      <div class="q-title">お名前とご住所をご入力ください</div>
+      <div class="q-hint">代表者の方の情報をご入力ください</div>
+      <div class="field-grid">
+        <div>
+          <label class="field-label">宿泊者名</label>
+          <input type="text" id="in_name" placeholder="例：山田 太郎" value="${escapeHtml(state.name)}">
+        </div>
+        <div>
+          <label class="field-label">ご住所</label>
+          <input type="text" id="in_address" placeholder="例：長野県東筑摩郡生坂村〇〇" value="${escapeHtml(state.address)}">
+        </div>
+      </div>`;
+
+    case 'facility': return `
+      <div class="q-title">ご利用の施設を選んでください</div>
+      <div class="q-hint">タップして選択してください</div>
+      <div class="card-grid">
+        ${CONFIG.facilities.map(f=>`
+          <div class="opt-card ${state.facility===f.id?'selected':''}" data-val="${f.id}">
+            <div class="ico">${f.ico}</div>
+            <div class="label">${f.label}</div>
+            <div class="desc">${f.desc}</div>
+          </div>`).join('')}
+      </div>`;
+
+    case 'campDetail': return `
+      <div class="q-title">キャンプのご利用について</div>
+      <div class="q-hint">分かる範囲でご入力ください（あとで係員が確認します）</div>
+      <div class="field-grid">
+        <div>
+          <label class="field-label">お車のナンバー</label>
+          <input type="text" id="in_car" placeholder="例：松本 123 あ 12-34" value="${escapeHtml(state.campCarNumber)}">
+        </div>
+        <div>
+          <label class="field-label">テント・タープのサイズ／数</label>
+          <input type="text" id="in_tent" placeholder="例：テント1・タープ1" value="${escapeHtml(state.campTent)}">
+        </div>
+        <div>
+          <label class="field-label">ペット同伴</label>
+          <input type="text" id="in_pet" placeholder="例：犬1匹（小型犬）／なし" value="${escapeHtml(state.campPet)}">
+        </div>
+        <div>
+          <label class="field-label">焚き火のご利用</label>
+          <input type="text" id="in_fire" placeholder="例：あり／なし" value="${escapeHtml(state.campFire)}">
+        </div>
+      </div>`;
+
+    case 'people': return `
+      <div class="q-title">ご利用人数を選んでください</div>
+      <div class="q-hint">＋／－ボタンで人数を調整してください</div>
+      <div class="stepper-list">
+        ${stepperRow('adults','大人','中学生以上')}
+        ${stepperRow('children','子供','小学生')}
+        ${stepperRow('infants','幼児','未就学児')}
+      </div>`;
+
+    case 'nights': return `
+      <div class="q-title">何泊されますか？</div>
+      <div class="q-hint">日帰りの場合は0泊を選んでください</div>
+      <div class="stepper-list">
+        ${stepperRow('nights','宿泊数','泊', 0)}
+      </div>`;
+
+    case 'reservation': return `
+      <div class="q-title">ご予約方法を選んでください</div>
+      <div class="card-grid cols-2">
+        ${CONFIG.reservationMethods.map(r=>`
+          <div class="opt-card ${state.reservation===r.id?'selected':''}" data-val="${r.id}" data-group="reservation">
+            <div class="ico">${r.ico}</div>
+            <div class="label">${r.label}</div>
+          </div>`).join('')}
+      </div>`;
+
+    case 'payment': {
+      const list = CONFIG.paymentMethods[state.reservation] || [];
+      return `
+      <div class="q-title">お支払い方法を選んでください</div>
+      <div class="card-grid cols-2">
+        ${list.map(p=>`
+          <div class="opt-card ${state.payment===p.id?'selected':''}" data-val="${p.id}" data-group="payment">
+            <div class="ico">${p.ico}</div>
+            <div class="label">${p.label}</div>
+          </div>`).join('')}
+      </div>`;
+    }
+
+    case 'confirm': {
+      const f = CONFIG.facilities.find(x=>x.id===state.facility);
+      const r = CONFIG.reservationMethods.find(x=>x.id===state.reservation);
+      const p = (CONFIG.paymentMethods[state.reservation]||[]).find(x=>x.id===state.payment);
+      const rows = [
+        ['宿泊者名', state.name||'—'],
+        ['ご住所', state.address||'—'],
+        ['ご利用施設', f?f.label:'—'],
+      ];
+      if(f && f.camp){
+        rows.push(['お車のナンバー', state.campCarNumber||'—']);
+        rows.push(['テント・タープ', state.campTent||'—']);
+        rows.push(['ペット同伴', state.campPet||'—']);
+        rows.push(['焚き火', state.campFire||'—']);
+      }
+      rows.push(
+        ['人数', `大人 ${state.adults}名 / 子供 ${state.children}名 / 幼児 ${state.infants}名`],
+        ['宿泊数', `${state.nights} 泊`],
+        ['ご予約方法', r?r.label:'—'],
+        ['お支払い方法', p?p.label:'—'],
+      );
+      return `
+        <div class="q-title">この内容でよろしいですか？</div>
+        <div class="q-hint">内容をご確認のうえ「この内容で受付する」を押してください</div>
+        <div class="confirm-list">
+          ${rows.map(([k,v])=>`<div class="confirm-row"><div class="k">${k}</div><div class="v">${escapeHtml(String(v))}</div></div>`).join('')}
+        </div>`;
+    }
+  }
+}
+
+function stepperRow(key,label,sub,min=0){
+  return `
+    <div class="stepper-row">
+      <div class="meta"><div class="label">${label}</div><div class="sub">${sub}</div></div>
+      <div class="stepper-ctrl">
+        <div class="stepper-btn" data-step="-1" data-key="${key}" data-min="${min}">−</div>
+        <div class="stepper-val" id="val_${key}">${state[key]}</div>
+        <div class="stepper-btn" data-step="1" data-key="${key}" data-min="${min}">＋</div>
+      </div>
+    </div>`;
+}
+
+function wireStage(key){
+  // テキスト入力
+  document.querySelectorAll('#stage input[type=text]').forEach(el=>{
+    el.addEventListener('input', e=>{
+      const map = {in_name:'name',in_address:'address',in_car:'campCarNumber',in_tent:'campTent',in_pet:'campPet',in_fire:'campFire'};
+      const k = map[e.target.id];
+      if(k){ state[k]=e.target.value; updateNextEnabled(key); }
+    });
+  });
+  // カード選択
+  document.querySelectorAll('#stage .opt-card').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const val = el.dataset.val;
+      const group = el.dataset.group;
+      if(key==='facility'){ state.facility = val; }
+      else if(group==='reservation'){ state.reservation = val; if(!(CONFIG.paymentMethods[val]||[]).find(p=>p.id===state.payment)) state.payment=''; }
+      else if(group==='payment'){ state.payment = val; }
+      render();
+    });
+  });
+  // ステッパー
+  document.querySelectorAll('#stage .stepper-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const k = el.dataset.key;
+      const min = parseInt(el.dataset.min);
+      const d = parseInt(el.dataset.step);
+      let v = state[k] + d;
+      if(v < min) v = min;
+      if(v > 99) v = 99;
+      state[k] = v;
+      const span = document.getElementById('val_'+k);
+      if(span) span.textContent = v;
+      updateNextEnabled(key);
+    });
+  });
+}
+
+function updateNextEnabled(key){
+  const nextBtn = document.getElementById('nextBtn');
+  if(!nextBtn) return;
+  let ok = true;
+  if(key==='name') ok = state.name.trim().length>0 && state.address.trim().length>0;
+  if(key==='facility') ok = !!state.facility;
+  if(key==='reservation') ok = !!state.reservation;
+  if(key==='payment') ok = !!state.payment;
+  nextBtn.disabled = !ok;
+}
+
+function goBack(){
+  if(animLock) return;
+  if(stepIndex===0) return;
+  stepIndex--;
+  render();
+}
+
+async function goNext(){
+  if(animLock) return;
+  const steps = buildSteps();
+  const key = steps[stepIndex];
+  if(key==='confirm'){
+    await submitEntry();
+    return;
+  }
+  if(stepIndex < steps.length-1){
+    stepIndex++;
+    render();
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ====================== 保存（クラウドの簡易データベースに保存） ====================== */
+async function submitEntry(){
+  const nextBtn = document.getElementById('nextBtn');
+  nextBtn.disabled = true;
+  nextBtn.textContent = '送信中…';
+  const f = CONFIG.facilities.find(x=>x.id===state.facility);
+  const r = CONFIG.reservationMethods.find(x=>x.id===state.reservation);
+  const p = (CONFIG.paymentMethods[state.reservation]||[]).find(x=>x.id===state.payment);
+
+  const entry = {
+    receivedAt: new Date().toISOString(),
+    name: state.name,
+    address: state.address,
+    facility: f ? f.label : '',
+    campCarNumber: state.campCarNumber,
+    campTent: state.campTent,
+    campPet: state.campPet,
+    campFire: state.campFire,
+    adults: state.adults,
+    children: state.children,
+    infants: state.infants,
+    nights: state.nights,
+    reservation: r ? r.label : '',
+    payment: p ? p.label : '',
+  };
+
+  try{
+    // ① これまで通り、管理者画面（⚙ボタン）用にも保存しておく
+    const key = 'checkin:' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    const res = await window.storage.set(key, JSON.stringify(entry), true);
+    if(!res){ throw new Error('storage returned null'); }
+
+    // ② GAS経由でGoogleスプレッドシートにも保存する
+    if(GAS_URL && GAS_URL.startsWith('http')){
+      try{
+        // no-corsで送信（GAS側からの応答は読めないが、送信自体は届く）
+        await fetch(GAS_URL, {
+          method:'POST',
+          mode:'no-cors',
+          headers:{'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify(entry)
+        });
+      }catch(gasErr){
+        // スプレッドシート送信に失敗しても、受付自体は完了として進める
+        console.warn('スプレッドシートへの送信に失敗しました（受付データ自体は保存済みです）', gasErr);
+      }
+    }
+
+    showThanks();
+  }catch(e){
+    console.error(e);
+    alert('保存中にエラーが発生しました。係員にお声がけください。');
+    nextBtn.disabled = false;
+    nextBtn.textContent = 'この内容で受付する';
+  }
+}
+
+function showThanks(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="thanks">
+      <div class="big">⛺✅</div>
+      <h2>受付が完了しました</h2>
+      <p>ありがとうございます。係員が確認のうえご案内いたします。</p>
+      <div class="reset-bar" id="resetMsg">8秒後に最初の画面に戻ります</div>
+      <button class="btn btn-primary" style="margin-top:18px" onclick="resetAll()">次のお客様の受付をする</button>
+    </div>`;
+  let sec = 8;
+  const timer = setInterval(()=>{
+    sec--;
+    const m = document.getElementById('resetMsg');
+    if(m) m.textContent = `${sec}秒後に最初の画面に戻ります`;
+    if(sec<=0){ clearInterval(timer); resetAll(); }
+  },1000);
+}
+
+function resetAll(){
+  state = { name:'',address:'',facility:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',adults:1,children:0,infants:0,nights:1,reservation:'',payment:'' };
+  stepIndex = 0;
+  render();
+}
+
+/* ====================== 管理者画面（データ確認・CSV出力） ====================== */
+async function openAdmin(){
+  let entries = [];
+  try{
+    const list = await window.storage.list('checkin:', true);
+    const keys = (list && list.keys) || [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, true);
+        if(r) entries.push({key:k, data: JSON.parse(r.value)});
+      }catch(e){}
+    }
+  }catch(e){ console.error(e); }
+  entries.sort((a,b)=> (b.data.receivedAt||'').localeCompare(a.data.receivedAt||''));
+
+  const overlay = document.createElement('div');
+  overlay.className = 'admin-overlay';
+  overlay.id = 'adminOverlay';
+  overlay.innerHTML = `
+    <div class="admin-panel">
+      <div class="admin-head">
+        <h3>受付データ（${entries.length}件）</h3>
+        <button class="small-btn" onclick="closeAdmin()">閉じる</button>
+      </div>
+      <div class="admin-body">
+        <table>
+          <thead><tr>
+            <th>受付時刻</th><th>氏名</th><th>住所</th><th>施設</th>
+            <th>大人</th><th>子供</th><th>幼児</th><th>泊数</th>
+            <th>予約方法</th><th>支払方法</th>
+          </tr></thead>
+          <tbody>
+            ${entries.map(e=>{
+              const d=e.data;
+              const t = d.receivedAt ? new Date(d.receivedAt).toLocaleString('ja-JP') : '';
+              return `<tr>
+                <td>${t}</td><td>${escapeHtml(d.name||'')}</td><td>${escapeHtml(d.address||'')}</td>
+                <td>${escapeHtml(d.facility||'')}</td><td>${d.adults??''}</td><td>${d.children??''}</td>
+                <td>${d.infants??''}</td><td>${d.nights??''}</td>
+                <td>${escapeHtml(d.reservation||'')}</td><td>${escapeHtml(d.payment||'')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="admin-foot">
+        <button class="small-btn" onclick="downloadCsv()">CSVダウンロード</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  window.__adminEntries = entries;
+}
+function closeAdmin(){
+  const el = document.getElementById('adminOverlay');
+  if(el) el.remove();
+}
+function downloadCsv(){
+  const entries = window.__adminEntries || [];
+  const headers = ['受付時刻','氏名','住所','施設','車のナンバー','テント・タープ','ペット','焚き火','大人','子供','幼児','泊数','予約方法','支払方法'];
+  const lines = [headers.join(',')];
+  entries.forEach(e=>{
+    const d = e.data;
+    const t = d.receivedAt ? new Date(d.receivedAt).toLocaleString('ja-JP') : '';
+    const row = [t,d.name,d.address,d.facility,d.campCarNumber,d.campTent,d.campPet,d.campFire,d.adults,d.children,d.infants,d.nights,d.reservation,d.payment]
+      .map(v => `"${String(v??'').replace(/"/g,'""')}"`);
+    lines.push(row.join(','));
+  });
+  const blob = new Blob(["\uFEFF"+lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `受付データ_${Date.now()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+render();
+</script>
+</body>
+</html>

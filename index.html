@@ -108,10 +108,6 @@
     opacity:1;
     pointer-events:auto;
   }
-  .stage.leaving{
-    transform:translateX(-40px);
-    opacity:0;
-  }
   .q-title{
     font-size:26px;
     font-weight:700;
@@ -136,7 +132,7 @@
     margin-bottom:6px;
     display:block;
   }
-  input[type=text]{
+  input[type=text], input[type=tel]{
     width:100%;
     font-size:22px;
     padding:16px 18px;
@@ -148,9 +144,35 @@
     transition:border-color .2s;
     font-family:inherit;
   }
-  input[type=text]:focus{
+  input[type=text]:focus, input[type=tel]:focus{
     border-color:var(--ember);
   }
+
+  /* ===== トップページ ===== */
+  .top-wrap{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap:18px;
+  }
+  .top-wrap .top-ico{font-size:64px;}
+  .top-wrap h2{font-size:30px;color:var(--moss);margin:0;}
+  .top-wrap p{color:#8a8369;font-size:15px;max-width:480px;line-height:1.7;margin:0;}
+  .top-start-btn{
+    margin-top:10px;
+    font-size:20px;
+    font-weight:700;
+    padding:20px 52px;
+    border-radius:16px;
+    border:none;
+    background:var(--ember);
+    color:#fff;
+    cursor:pointer;
+  }
+  .top-start-btn:active{transform:scale(.97);}
 
   /* ===== 選択カード ===== */
   .card-grid{
@@ -171,13 +193,14 @@
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:10px;
-    min-height:130px;
+    gap:8px;
+    min-height:140px;
     justify-content:center;
   }
   .opt-card .ico{font-size:34px;line-height:1;}
   .opt-card .label{font-size:17px;font-weight:700;color:var(--ink);}
   .opt-card .desc{font-size:12px;color:#8a8369;}
+  .opt-card .price{font-size:12px;color:var(--ember);font-weight:700;}
   .opt-card:active{transform:scale(.97);}
   .opt-card.selected{
     border-color:var(--ember);
@@ -267,8 +290,41 @@
     font-size:15px;
   }
   .confirm-row:last-child{border-bottom:none;}
-  .confirm-row .k{width:130px;color:#8a8369;flex-shrink:0;}
+  .confirm-row .k{width:140px;color:#8a8369;flex-shrink:0;}
   .confirm-row .v{font-weight:700;color:var(--ink);}
+
+  .price-box{
+    margin-top:18px;
+    max-width:640px;
+    background:#fff;
+    border:2px solid var(--ember);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .price-box .price-head{
+    background:var(--ember);
+    color:#fff;
+    padding:10px 18px;
+    font-size:14px;
+    font-weight:700;
+  }
+  .price-row{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 18px;
+    font-size:14px;
+    border-bottom:1px solid var(--line);
+  }
+  .price-row .pname{color:#5c5848;}
+  .price-row .pval{font-weight:700;}
+  .price-row.total{
+    background:#fdf1e9;
+    font-size:18px;
+  }
+  .price-row.total .pname,.price-row.total .pval{color:var(--ember);font-weight:800;}
+  .price-note{
+    font-size:11px;color:#a39d86;padding:8px 18px 12px;
+  }
 
   /* ===== サンキュー画面 ===== */
   .thanks{
@@ -281,7 +337,6 @@
   .reset-bar{
     margin-top:24px;font-size:13px;color:#b5ad94;
   }
-
 </style>
 </head>
 <body>
@@ -292,19 +347,64 @@
    ▼ カスタマイズ用の設定（このCONFIGの中だけ書き換えればだいたいOK）
    ==================================================================== */
 const CONFIG = {
+
+  // 施設の種類。priceType で料金の計算方法を切り替えます。
+  //   'flat'        … 棟・室ごとの固定料金（人数が増えても変わらない。例：コテージ）
+  //   'campAuto'     … オートキャンプ（区画料金＋共同施設利用料）
+  //   'campFree'     … フリーキャンプ（区画料金＋共同施設利用料）
+  //   'perPerson'    … 1人あたりの料金（例：会議室・バーベキューを人数制にする場合）
+  //   'flatPerUse'   … 利用1回あたりの固定料金（例：会議室を時間貸しにする場合）
   facilities: [
-    { id:'cottage',   label:'コテージ',     ico:'🏠', desc:'宿泊棟' , camp:false},
-    { id:'bbq',       label:'バーベキュー', ico:'🍖', desc:'日帰り利用' , camp:false},
-    { id:'autocamp',  label:'オートキャンプ', ico:'🚐', desc:'車横付け' , camp:true},
-    { id:'freecamp',  label:'フリーキャンプ', ico:'⛺', desc:'区画自由' , camp:true},
-    { id:'meeting',   label:'会議室',       ico:'🗂️', desc:'研修・会議' , camp:false},
+    {
+      id:'cottage', label:'コテージ', ico:'🏠', desc:'宿泊棟', camp:false,
+      priceType:'flat',
+      price: 12000,           // 1棟あたりの基本料金（大人5名まで・追加料金なし）
+      priceNote:'1棟 12,000円（大人5名まで）',
+    },
+    {
+      id:'bbq', label:'バーベキュー', ico:'🍖', desc:'日帰り利用', camp:false,
+      priceType:'flatPerUse',
+      price: 5000,            // ▼仮の金額です。正式な金額が決まったら書き換えてください
+      priceNote:'1区画 5,000円（仮）',
+    },
+    {
+      id:'autocamp', label:'オートキャンプ', ico:'🚐', desc:'車横付け', camp:true,
+      priceType:'campAuto',
+      siteFeeStandard: 3000,  // A,B,C,D区画
+      siteFeeCheap: 2500,     // E,F区画
+      adultFee: 500,          // 共同施設利用料・大人(中学生以上)
+      childFee: 300,          // 共同施設利用料・小学生(小学生未満無料)
+      priceNote:'区画利用料3,000円（A〜D）/2,500円（E,F）＋共同施設利用料 大人500円・小学生300円',
+    },
+    {
+      id:'freecamp', label:'フリーキャンプ', ico:'⛺', desc:'区画自由', camp:true,
+      priceType:'campFree',
+      siteFee: 1000,
+      adultFee: 500,
+      childFee: 300,
+      priceNote:'区画利用料1,000円＋共同施設利用料 大人500円・小学生300円',
+    },
+    {
+      id:'meeting', label:'会議室', ico:'🗂️', desc:'研修・会議', camp:false,
+      priceType:'flatPerUse',
+      price: 3000,            // ▼仮の金額です。正式な金額が決まったら書き換えてください
+      priceNote:'1回 3,000円（仮）',
+    },
   ],
+
+  // オートキャンプの区画ランク（A〜D＝標準、E,F＝割安）を選んでもらうための選択肢
+  autocampSiteOptions: [
+    { id:'standard', label:'A・B・C・D区画', fee:3000 },
+    { id:'cheap',    label:'E・F区画',       fee:2500 },
+  ],
+
   // 予約方法
   reservationMethods: [
     { id:'web',   label:'ネット予約', ico:'💻' },
     { id:'phone', label:'電話予約',   ico:'☎️' },
   ],
-  // 支払い方法は予約方法ごとに変える
+
+  // 支払い方法（予約方法ごとに変える。銀行振込は削除済み）
   paymentMethods: {
     web:   [
       { id:'web_paid',   label:'ネットで決済済み', ico:'✅' },
@@ -314,59 +414,60 @@ const CONFIG = {
     phone: [
       { id:'onsite_cash', label:'現地で現金払い', ico:'💴' },
       { id:'onsite_card', label:'現地でカード払い', ico:'💳' },
-      { id:'bank',        label:'銀行振込',       ico:'🏦' },
     ],
   },
 };
 
 // ▼ スプレッドシートに保存するためのGAS WebアプリURL
-//   GASで「デプロイ」した後に出てくるURLをここに貼ってください。
-//   空のままだと、スプレッドシートには保存されず、これまでの管理者画面用の保存のみ行われます。
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxn761azY4h4wPdkfKPelsmiN8K2mxoOe76CmE5CRYU2Hu3Zkc0mPUneUTSqkPzGUza/exec";
 /* ==================================================================== */
 
 let state = {
-  name:'', address:'',
+  name:'', address:'', phone:'',
+  adults:1, children:0, infants:0,
   facility:'',
   campCarNumber:'', campTent:'', campPet:'', campFire:'',
-  adults:1, children:0, infants:0,
+  autocampSite:'standard',
   nights:1,
   reservation:'',
   payment:'',
 };
 
-// 動的にステップ一覧を組み立てる（キャンプを選んだ時だけ3ページ目が入る）
+// ページの並び：①トップ ②お客様情報 ③人数 ④施設(必要ならキャンプ詳細) ⑤泊数 ⑥予約方法 ⑦支払い方法 → 確認
 function buildSteps(){
-  const steps = ['name','facility'];
+  const steps = ['top','customer','people','facility'];
   const f = CONFIG.facilities.find(x=>x.id===state.facility);
   if(f && f.camp) steps.push('campDetail');
-  steps.push('people','nights','reservation','payment','confirm');
+  steps.push('nights','reservation','payment','confirm');
   return steps;
 }
 
 let stepIndex = 0;
-let animLock = false;
 
 function render(){
   const steps = buildSteps();
   if(stepIndex > steps.length-1) stepIndex = steps.length-1;
   const total = steps.length;
   const key = steps[stepIndex];
+  const isTop = key==='top';
 
   const app = document.getElementById('app');
   app.innerHTML = `
-    <header>
+    <header style="${isTop?'display:none;':''}">
       <div class="brand">
         <h1>ご来場受付</h1>
-        <div class="sub">STEP ${stepIndex+1} / ${total}</div>
+        <div class="sub">STEP ${stepIndex} / ${total-1}</div>
       </div>
       <div class="progress-track">
-        ${steps.map((s,i)=>`<div class="progress-seg ${i<stepIndex?'done':''} ${i===stepIndex?'current':''}"><div class="fill"></div></div>`).join('')}
+        ${steps.filter(s=>s!=='top').map((s,i)=>{
+          const realIndex = steps.indexOf(s);
+          return `<div class="progress-seg ${realIndex<stepIndex?'done':''} ${realIndex===stepIndex?'current':''}"><div class="fill"></div></div>`;
+        }).join('')}
       </div>
       <div class="step-label">${stepLabel(key)}</div>
     </header>
     <main><div class="stage active" id="stage">${renderStage(key)}</div></main>
-    <footer>
+    <footer style="${isTop?'display:none;':''}">
       <button class="btn btn-ghost" id="backBtn" ${stepIndex===0?'disabled':''} onclick="goBack()">戻る</button>
       <button class="btn btn-primary" id="nextBtn" onclick="goNext()">${key==='confirm' ? 'この内容で受付する' : '次へ'}</button>
     </footer>
@@ -377,16 +478,95 @@ function render(){
 
 function stepLabel(key){
   return ({
-    name:'お客様情報', facility:'ご利用施設', campDetail:'キャンプのご利用詳細',
-    people:'ご利用人数', nights:'宿泊数', reservation:'ご予約方法',
-    payment:'お支払い方法', confirm:'内容のご確認'
+    customer:'お客様情報', people:'ご利用人数', facility:'ご利用施設', campDetail:'キャンプのご利用詳細',
+    nights:'宿泊数', reservation:'ご予約方法', payment:'お支払い方法', confirm:'内容のご確認'
   })[key] || '';
 }
 
+/* ====================== 料金計算 ====================== */
+function calcPrice(){
+  const f = CONFIG.facilities.find(x=>x.id===state.facility);
+  if(!f) return { lines:[], total:0 };
+  const lines = [];
+  let total = 0;
+  const nights = Math.max(state.nights, 1);
+
+  if(f.priceType==='flat'){
+    const sub = f.price * nights;
+    lines.push({ name:`${f.label}（1棟）× ${nights}泊`, val: sub });
+    total += sub;
+
+  } else if(f.priceType==='flatPerUse'){
+    const sub = f.price;
+    lines.push({ name:`${f.label}利用料`, val: sub });
+    total += sub;
+
+  } else if(f.priceType==='campAuto'){
+    const siteOpt = CONFIG.autocampSiteOptions.find(o=>o.id===state.autocampSite) || CONFIG.autocampSiteOptions[0];
+    const siteSub = siteOpt.fee * nights;
+    lines.push({ name:`区画利用料（${siteOpt.label}）× ${nights}泊`, val: siteSub });
+    total += siteSub;
+
+    if(state.adults>0){
+      const sub = f.adultFee * state.adults * nights;
+      lines.push({ name:`共同施設利用料・大人 ${state.adults}名 × ${nights}泊`, val: sub });
+      total += sub;
+    }
+    if(state.children>0){
+      const sub = f.childFee * state.children * nights;
+      lines.push({ name:`共同施設利用料・小学生 ${state.children}名 × ${nights}泊`, val: sub });
+      total += sub;
+    }
+    if(state.infants>0){
+      lines.push({ name:`幼児（小学生未満） ${state.infants}名`, val: 0 });
+    }
+
+  } else if(f.priceType==='campFree'){
+    const siteSub = f.siteFee * nights;
+    lines.push({ name:`区画利用料 × ${nights}泊`, val: siteSub });
+    total += siteSub;
+
+    if(state.adults>0){
+      const sub = f.adultFee * state.adults * nights;
+      lines.push({ name:`共同施設利用料・大人 ${state.adults}名 × ${nights}泊`, val: sub });
+      total += sub;
+    }
+    if(state.children>0){
+      const sub = f.childFee * state.children * nights;
+      lines.push({ name:`共同施設利用料・小学生 ${state.children}名 × ${nights}泊`, val: sub });
+      total += sub;
+    }
+    if(state.infants>0){
+      lines.push({ name:`幼児（小学生未満） ${state.infants}名`, val: 0 });
+    }
+
+  } else if(f.priceType==='perPerson'){
+    const sub = f.price * (state.adults + state.children);
+    lines.push({ name:`${f.label} ${state.adults+state.children}名`, val: sub });
+    total += sub;
+  }
+
+  return { lines, total };
+}
+
+function yen(n){ return '¥' + n.toLocaleString('ja-JP'); }
+
+/* ====================== 各ページの中身 ====================== */
 function renderStage(key){
   switch(key){
-    case 'name': return `
-      <div class="q-title">お名前とご住所をご入力ください</div>
+
+    // ① トップページ
+    case 'top': return `
+      <div class="top-wrap">
+        <div class="top-ico">⛺🏠</div>
+        <h2>ご来場ありがとうございます</h2>
+        <p>こちらの端末でチェックインの受付を行います。<br>画面の案内に沿って、いくつかの項目をご入力ください。</p>
+        <button class="top-start-btn" onclick="startFlow()">受付をはじめる</button>
+      </div>`;
+
+    // ② お客様情報（名前・住所・電話番号）
+    case 'customer': return `
+      <div class="q-title">お客様情報をご入力ください</div>
       <div class="q-hint">代表者の方の情報をご入力ください</div>
       <div class="field-grid">
         <div>
@@ -397,8 +577,23 @@ function renderStage(key){
           <label class="field-label">ご住所</label>
           <input type="text" id="in_address" placeholder="例：長野県東筑摩郡生坂村〇〇" value="${escapeHtml(state.address)}">
         </div>
+        <div>
+          <label class="field-label">お電話番号</label>
+          <input type="tel" id="in_phone" placeholder="例：090-1234-5678" value="${escapeHtml(state.phone)}">
+        </div>
       </div>`;
 
+    // ③ 宿泊人数
+    case 'people': return `
+      <div class="q-title">ご利用人数を選んでください</div>
+      <div class="q-hint">＋／－ボタンで人数を調整してください</div>
+      <div class="stepper-list">
+        ${stepperRow('adults','大人','中学生以上')}
+        ${stepperRow('children','子供','小学生')}
+        ${stepperRow('infants','幼児','未就学児')}
+      </div>`;
+
+    // ④ ご利用の施設
     case 'facility': return `
       <div class="q-title">ご利用の施設を選んでください</div>
       <div class="q-hint">タップして選択してください</div>
@@ -408,13 +603,29 @@ function renderStage(key){
             <div class="ico">${f.ico}</div>
             <div class="label">${f.label}</div>
             <div class="desc">${f.desc}</div>
+            <div class="price">${f.priceNote}</div>
           </div>`).join('')}
       </div>`;
 
-    case 'campDetail': return `
+    // キャンプ詳細（オート／フリーを選んだ場合のみ表示）
+    case 'campDetail': {
+      const f = CONFIG.facilities.find(x=>x.id===state.facility);
+      const isAuto = f && f.id==='autocamp';
+      return `
       <div class="q-title">キャンプのご利用について</div>
       <div class="q-hint">分かる範囲でご入力ください（あとで係員が確認します）</div>
       <div class="field-grid">
+        ${isAuto ? `
+        <div>
+          <label class="field-label">ご希望の区画</label>
+          <div class="card-grid cols-2" style="max-width:480px;">
+            ${CONFIG.autocampSiteOptions.map(o=>`
+              <div class="opt-card ${state.autocampSite===o.id?'selected':''}" data-val="${o.id}" data-group="autocampSite">
+                <div class="label">${o.label}</div>
+                <div class="price">${yen(o.fee)}/区画/泊</div>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
         <div>
           <label class="field-label">お車のナンバー</label>
           <input type="text" id="in_car" placeholder="例：松本 123 あ 12-34" value="${escapeHtml(state.campCarNumber)}">
@@ -432,16 +643,9 @@ function renderStage(key){
           <input type="text" id="in_fire" placeholder="例：あり／なし" value="${escapeHtml(state.campFire)}">
         </div>
       </div>`;
+    }
 
-    case 'people': return `
-      <div class="q-title">ご利用人数を選んでください</div>
-      <div class="q-hint">＋／－ボタンで人数を調整してください</div>
-      <div class="stepper-list">
-        ${stepperRow('adults','大人','中学生以上')}
-        ${stepperRow('children','子供','小学生')}
-        ${stepperRow('infants','幼児','未就学児')}
-      </div>`;
-
+    // ⑤ 何泊
     case 'nights': return `
       <div class="q-title">何泊されますか？</div>
       <div class="q-hint">日帰りの場合は0泊を選んでください</div>
@@ -449,6 +653,7 @@ function renderStage(key){
         ${stepperRow('nights','宿泊数','泊', 0)}
       </div>`;
 
+    // ⑥ 予約方法
     case 'reservation': return `
       <div class="q-title">ご予約方法を選んでください</div>
       <div class="card-grid cols-2">
@@ -459,6 +664,7 @@ function renderStage(key){
           </div>`).join('')}
       </div>`;
 
+    // ⑦ 支払い方法
     case 'payment': {
       const list = CONFIG.paymentMethods[state.reservation] || [];
       return `
@@ -472,6 +678,7 @@ function renderStage(key){
       </div>`;
     }
 
+    // 確認画面＋料金
     case 'confirm': {
       const f = CONFIG.facilities.find(x=>x.id===state.facility);
       const r = CONFIG.reservationMethods.find(x=>x.id===state.reservation);
@@ -479,25 +686,39 @@ function renderStage(key){
       const rows = [
         ['宿泊者名', state.name||'—'],
         ['ご住所', state.address||'—'],
+        ['お電話番号', state.phone||'—'],
+        ['人数', `大人 ${state.adults}名 / 子供 ${state.children}名 / 幼児 ${state.infants}名`],
         ['ご利用施設', f?f.label:'—'],
       ];
       if(f && f.camp){
+        if(f.id==='autocamp'){
+          const siteOpt = CONFIG.autocampSiteOptions.find(o=>o.id===state.autocampSite);
+          rows.push(['ご希望の区画', siteOpt?siteOpt.label:'—']);
+        }
         rows.push(['お車のナンバー', state.campCarNumber||'—']);
         rows.push(['テント・タープ', state.campTent||'—']);
         rows.push(['ペット同伴', state.campPet||'—']);
         rows.push(['焚き火', state.campFire||'—']);
       }
       rows.push(
-        ['人数', `大人 ${state.adults}名 / 子供 ${state.children}名 / 幼児 ${state.infants}名`],
         ['宿泊数', `${state.nights} 泊`],
         ['ご予約方法', r?r.label:'—'],
         ['お支払い方法', p?p.label:'—'],
       );
+
+      const { lines, total } = calcPrice();
+
       return `
         <div class="q-title">この内容でよろしいですか？</div>
         <div class="q-hint">内容をご確認のうえ「この内容で受付する」を押してください</div>
         <div class="confirm-list">
           ${rows.map(([k,v])=>`<div class="confirm-row"><div class="k">${k}</div><div class="v">${escapeHtml(String(v))}</div></div>`).join('')}
+        </div>
+        <div class="price-box">
+          <div class="price-head">ご利用料金（目安）</div>
+          ${lines.map(l=>`<div class="price-row"><div class="pname">${escapeHtml(l.name)}</div><div class="pval">${yen(l.val)}</div></div>`).join('')}
+          <div class="price-row total"><div class="pname">合計</div><div class="pval">${yen(total)}</div></div>
+          <div class="price-note">※表示金額は目安です。詳細は係員にご確認ください。</div>
         </div>`;
     }
   }
@@ -515,11 +736,16 @@ function stepperRow(key,label,sub,min=0){
     </div>`;
 }
 
+function startFlow(){
+  stepIndex = 1;
+  render();
+}
+
 function wireStage(key){
   // テキスト入力
-  document.querySelectorAll('#stage input[type=text]').forEach(el=>{
+  document.querySelectorAll('#stage input[type=text], #stage input[type=tel]').forEach(el=>{
     el.addEventListener('input', e=>{
-      const map = {in_name:'name',in_address:'address',in_car:'campCarNumber',in_tent:'campTent',in_pet:'campPet',in_fire:'campFire'};
+      const map = {in_name:'name',in_address:'address',in_phone:'phone',in_car:'campCarNumber',in_tent:'campTent',in_pet:'campPet',in_fire:'campFire'};
       const k = map[e.target.id];
       if(k){ state[k]=e.target.value; updateNextEnabled(key); }
     });
@@ -530,6 +756,7 @@ function wireStage(key){
       const val = el.dataset.val;
       const group = el.dataset.group;
       if(key==='facility'){ state.facility = val; }
+      else if(group==='autocampSite'){ state.autocampSite = val; }
       else if(group==='reservation'){ state.reservation = val; if(!(CONFIG.paymentMethods[val]||[]).find(p=>p.id===state.payment)) state.payment=''; }
       else if(group==='payment'){ state.payment = val; }
       render();
@@ -556,7 +783,7 @@ function updateNextEnabled(key){
   const nextBtn = document.getElementById('nextBtn');
   if(!nextBtn) return;
   let ok = true;
-  if(key==='name') ok = state.name.trim().length>0 && state.address.trim().length>0;
+  if(key==='customer') ok = state.name.trim().length>0 && state.address.trim().length>0;
   if(key==='facility') ok = !!state.facility;
   if(key==='reservation') ok = !!state.reservation;
   if(key==='payment') ok = !!state.payment;
@@ -564,14 +791,12 @@ function updateNextEnabled(key){
 }
 
 function goBack(){
-  if(animLock) return;
   if(stepIndex===0) return;
   stepIndex--;
   render();
 }
 
 async function goNext(){
-  if(animLock) return;
   const steps = buildSteps();
   const key = steps[stepIndex];
   if(key==='confirm'){
@@ -588,7 +813,7 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* ====================== 保存（クラウドの簡易データベースに保存） ====================== */
+/* ====================== 保存（GAS経由でスプレッドシートへ） ====================== */
 async function submitEntry(){
   const nextBtn = document.getElementById('nextBtn');
   nextBtn.disabled = true;
@@ -596,38 +821,37 @@ async function submitEntry(){
   const f = CONFIG.facilities.find(x=>x.id===state.facility);
   const r = CONFIG.reservationMethods.find(x=>x.id===state.reservation);
   const p = (CONFIG.paymentMethods[state.reservation]||[]).find(x=>x.id===state.payment);
+  const { total } = calcPrice();
 
   const entry = {
     receivedAt: new Date().toISOString(),
     name: state.name,
     address: state.address,
+    phone: state.phone,
+    adults: state.adults,
+    children: state.children,
+    infants: state.infants,
     facility: f ? f.label : '',
     campCarNumber: state.campCarNumber,
     campTent: state.campTent,
     campPet: state.campPet,
     campFire: state.campFire,
-    adults: state.adults,
-    children: state.children,
-    infants: state.infants,
     nights: state.nights,
     reservation: r ? r.label : '',
     payment: p ? p.label : '',
+    totalPrice: total,
   };
 
   try{
     if(!GAS_URL || !GAS_URL.startsWith('http')){
       throw new Error('GAS_URLが設定されていません。コード上部のGAS_URLにスプレッドシート連携用のURLを貼ってください。');
     }
-
-    // GAS経由でGoogleスプレッドシートに保存する
-    // no-corsで送信のため、GAS側からの成功/失敗の応答は読み取れない（送信自体が成功したかのみ分かる）
     await fetch(GAS_URL, {
       method:'POST',
       mode:'no-cors',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify(entry)
     });
-
     showThanks();
   }catch(e){
     console.error(e);
@@ -657,7 +881,7 @@ function showThanks(){
 }
 
 function resetAll(){
-  state = { name:'',address:'',facility:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',adults:1,children:0,infants:0,nights:1,reservation:'',payment:'' };
+  state = { name:'',address:'',phone:'',adults:1,children:0,infants:0,facility:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',autocampSite:'standard',nights:1,reservation:'',payment:'' };
   stepIndex = 0;
   render();
 }

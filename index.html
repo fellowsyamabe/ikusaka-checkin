@@ -282,53 +282,10 @@
     margin-top:24px;font-size:13px;color:#b5ad94;
   }
 
-  /* ===== 管理者 ===== */
-  .admin-fab{
-    position:fixed;
-    bottom:14px;
-    right:14px;
-    width:30px;height:30px;
-    border-radius:50%;
-    background:transparent;
-    border:none;
-    opacity:.18;
-    font-size:16px;
-    z-index:50;
-  }
-  .admin-overlay{
-    position:fixed;inset:0;background:rgba(20,20,16,.6);
-    display:flex;align-items:center;justify-content:center;
-    z-index:100;
-  }
-  .admin-panel{
-    background:#fff;border-radius:18px;
-    width:90%;max-width:820px;max-height:82%;
-    display:flex;flex-direction:column;
-    overflow:hidden;
-  }
-  .admin-head{
-    padding:18px 22px;border-bottom:1px solid var(--line);
-    display:flex;justify-content:space-between;align-items:center;
-  }
-  .admin-head h3{margin:0;color:var(--moss);}
-  .admin-body{flex:1;overflow:auto;padding:0 22px;}
-  table{width:100%;border-collapse:collapse;font-size:13px;}
-  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;}
-  th{color:#8a8369;font-weight:600;position:sticky;top:0;background:#fff;}
-  .admin-foot{
-    padding:14px 22px;border-top:1px solid var(--line);
-    display:flex;gap:10px;justify-content:flex-end;
-  }
-  .small-btn{
-    font-size:13px;padding:9px 16px;border-radius:8px;border:1px solid var(--line);
-    background:var(--cream);cursor:pointer;
-  }
-  .small-btn.danger{color:var(--danger);border-color:var(--danger);background:#fff;}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<button class="admin-fab" onclick="openAdmin()">⚙</button>
 
 <script>
 /* ====================================================================
@@ -658,31 +615,23 @@ async function submitEntry(){
   };
 
   try{
-    // ① これまで通り、管理者画面（⚙ボタン）用にも保存しておく
-    const key = 'checkin:' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    const res = await window.storage.set(key, JSON.stringify(entry), true);
-    if(!res){ throw new Error('storage returned null'); }
-
-    // ② GAS経由でGoogleスプレッドシートにも保存する
-    if(GAS_URL && GAS_URL.startsWith('http')){
-      try{
-        // no-corsで送信（GAS側からの応答は読めないが、送信自体は届く）
-        await fetch(GAS_URL, {
-          method:'POST',
-          mode:'no-cors',
-          headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body: JSON.stringify(entry)
-        });
-      }catch(gasErr){
-        // スプレッドシート送信に失敗しても、受付自体は完了として進める
-        console.warn('スプレッドシートへの送信に失敗しました（受付データ自体は保存済みです）', gasErr);
-      }
+    if(!GAS_URL || !GAS_URL.startsWith('http')){
+      throw new Error('GAS_URLが設定されていません。コード上部のGAS_URLにスプレッドシート連携用のURLを貼ってください。');
     }
+
+    // GAS経由でGoogleスプレッドシートに保存する
+    // no-corsで送信のため、GAS側からの成功/失敗の応答は読み取れない（送信自体が成功したかのみ分かる）
+    await fetch(GAS_URL, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(entry)
+    });
 
     showThanks();
   }catch(e){
     console.error(e);
-    alert('保存中にエラーが発生しました。係員にお声がけください。');
+    alert('保存中にエラーが発生しました。係員にお声がけください。\n詳細: ' + e.message);
     nextBtn.disabled = false;
     nextBtn.textContent = 'この内容で受付する';
   }
@@ -711,81 +660,6 @@ function resetAll(){
   state = { name:'',address:'',facility:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',adults:1,children:0,infants:0,nights:1,reservation:'',payment:'' };
   stepIndex = 0;
   render();
-}
-
-/* ====================== 管理者画面（データ確認・CSV出力） ====================== */
-async function openAdmin(){
-  let entries = [];
-  try{
-    const list = await window.storage.list('checkin:', true);
-    const keys = (list && list.keys) || [];
-    for(const k of keys){
-      try{
-        const r = await window.storage.get(k, true);
-        if(r) entries.push({key:k, data: JSON.parse(r.value)});
-      }catch(e){}
-    }
-  }catch(e){ console.error(e); }
-  entries.sort((a,b)=> (b.data.receivedAt||'').localeCompare(a.data.receivedAt||''));
-
-  const overlay = document.createElement('div');
-  overlay.className = 'admin-overlay';
-  overlay.id = 'adminOverlay';
-  overlay.innerHTML = `
-    <div class="admin-panel">
-      <div class="admin-head">
-        <h3>受付データ（${entries.length}件）</h3>
-        <button class="small-btn" onclick="closeAdmin()">閉じる</button>
-      </div>
-      <div class="admin-body">
-        <table>
-          <thead><tr>
-            <th>受付時刻</th><th>氏名</th><th>住所</th><th>施設</th>
-            <th>大人</th><th>子供</th><th>幼児</th><th>泊数</th>
-            <th>予約方法</th><th>支払方法</th>
-          </tr></thead>
-          <tbody>
-            ${entries.map(e=>{
-              const d=e.data;
-              const t = d.receivedAt ? new Date(d.receivedAt).toLocaleString('ja-JP') : '';
-              return `<tr>
-                <td>${t}</td><td>${escapeHtml(d.name||'')}</td><td>${escapeHtml(d.address||'')}</td>
-                <td>${escapeHtml(d.facility||'')}</td><td>${d.adults??''}</td><td>${d.children??''}</td>
-                <td>${d.infants??''}</td><td>${d.nights??''}</td>
-                <td>${escapeHtml(d.reservation||'')}</td><td>${escapeHtml(d.payment||'')}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="admin-foot">
-        <button class="small-btn" onclick="downloadCsv()">CSVダウンロード</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  window.__adminEntries = entries;
-}
-function closeAdmin(){
-  const el = document.getElementById('adminOverlay');
-  if(el) el.remove();
-}
-function downloadCsv(){
-  const entries = window.__adminEntries || [];
-  const headers = ['受付時刻','氏名','住所','施設','車のナンバー','テント・タープ','ペット','焚き火','大人','子供','幼児','泊数','予約方法','支払方法'];
-  const lines = [headers.join(',')];
-  entries.forEach(e=>{
-    const d = e.data;
-    const t = d.receivedAt ? new Date(d.receivedAt).toLocaleString('ja-JP') : '';
-    const row = [t,d.name,d.address,d.facility,d.campCarNumber,d.campTent,d.campPet,d.campFire,d.adults,d.children,d.infants,d.nights,d.reservation,d.payment]
-      .map(v => `"${String(v??'').replace(/"/g,'""')}"`);
-    lines.push(row.join(','));
-  });
-  const blob = new Blob(["\uFEFF"+lines.join('\n')], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `受付データ_${Date.now()}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
 }
 
 render();

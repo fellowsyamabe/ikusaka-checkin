@@ -6,421 +6,184 @@
 <title>ご来場受付</title>
 <style>
   :root{
-    --moss:#2f4538;      /* 深い森の緑(基調) */
+    --moss:#2f4538;
     --moss-light:#4a6b54;
-    --bark:#6b5840;      /* 木の幹色(アクセント) */
-    --cream:#f7f3ea;     /* 紙/テント生地のようなオフホワイト */
-    --ember:#c1622d;     /* 焚き火のオレンジ(強調・選択状態) */
+    --bark:#6b5840;
+    --cream:#f7f3ea;
+    --ember:#c1622d;
     --line:#dcd5c4;
     --ink:#2b2b26;
-    --danger:#a63d2f;
   }
   *{box-sizing:border-box;}
   html,body{
     margin:0;padding:0;height:100%;
     font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
-    background:var(--cream);
-    color:var(--ink);
+    background:var(--cream);color:var(--ink);
     overflow:hidden;
-    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color:transparent;
     user-select:none;
   }
-  #app{
-    position:relative;
-    height:100%;
-    width:100%;
-    display:flex;
-    flex-direction:column;
-  }
+  #app{position:relative;height:100%;width:100%;display:flex;flex-direction:column;}
 
-  /* ===== ヘッダー / 進捗バー ===== */
-  header{
-    padding:18px 28px 14px;
-    background:var(--cream);
-    border-bottom:1px solid var(--line);
-    flex-shrink:0;
+  /* ローディング画面 */
+  .loading{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
   }
-  .brand{
-    display:flex;
-    align-items:baseline;
-    justify-content:space-between;
-    margin-bottom:12px;
+  .loading .spinner{
+    width:48px;height:48px;border:4px solid var(--line);
+    border-top-color:var(--ember);border-radius:50%;
+    animation:spin .8s linear infinite;
   }
-  .brand h1{
-    font-size:20px;
-    margin:0;
-    letter-spacing:.05em;
-    color:var(--moss);
-    font-weight:700;
-  }
-  .brand .sub{
-    font-size:12px;
-    color:#8a8369;
-    letter-spacing:.1em;
-  }
-  .progress-track{
-    display:flex;
-    gap:6px;
-  }
-  .progress-seg{
-    flex:1;
-    height:6px;
-    border-radius:4px;
-    background:var(--line);
-    overflow:hidden;
-    position:relative;
-  }
-  .progress-seg .fill{
-    position:absolute;
-    inset:0;
-    background:var(--ember);
-    transform:translateX(-100%);
-    transition:transform .45s cubic-bezier(.4,0,.2,1);
-  }
-  .progress-seg.done .fill{transform:translateX(0);}
-  .progress-seg.current .fill{transform:translateX(0);}
-  .step-label{
-    margin-top:8px;
-    font-size:13px;
-    color:#8a8369;
-  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading p{color:#8a8369;font-size:15px;}
 
-  /* ===== ステージ(中身) ===== */
-  main{
-    flex:1;
-    position:relative;
-    overflow:hidden;
-  }
+  /* ヘッダー */
+  header{padding:18px 28px 14px;background:var(--cream);border-bottom:1px solid var(--line);flex-shrink:0;}
+  .brand{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;}
+  .brand h1{font-size:20px;margin:0;letter-spacing:.05em;color:var(--moss);font-weight:700;}
+  .brand .sub{font-size:12px;color:#8a8369;letter-spacing:.1em;}
+  .progress-track{display:flex;gap:6px;}
+  .progress-seg{flex:1;height:6px;border-radius:4px;background:var(--line);overflow:hidden;position:relative;}
+  .progress-seg .fill{position:absolute;inset:0;background:var(--ember);transform:translateX(-100%);transition:transform .45s cubic-bezier(.4,0,.2,1);}
+  .progress-seg.done .fill,.progress-seg.current .fill{transform:translateX(0);}
+  .step-label{margin-top:8px;font-size:13px;color:#8a8369;}
+
+  /* ステージ */
+  main{flex:1;position:relative;overflow:hidden;}
   .stage{
-    position:absolute;
-    inset:0;
-    padding:20px 32px 24px;
-    display:flex;
-    flex-direction:column;
-    transform:translateX(40px);
-    opacity:0;
-    transition:transform .38s cubic-bezier(.22,1,.36,1), opacity .3s ease;
-    pointer-events:none;
-    overflow-y:auto;
+    position:absolute;inset:0;padding:20px 32px 24px;
+    display:flex;flex-direction:column;
+    transform:translateX(40px);opacity:0;
+    transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .3s ease;
+    pointer-events:none;overflow-y:auto;
   }
-  .stage.active{
-    transform:translateX(0);
-    opacity:1;
-    pointer-events:auto;
+  .stage.active{transform:translateX(0);opacity:1;pointer-events:auto;}
+  .q-title{font-size:26px;font-weight:700;color:var(--moss);margin:6px 0 4px;}
+  .q-hint{font-size:14px;color:#8a8369;margin:0 0 22px;}
+  .field-grid{display:flex;flex-direction:column;gap:18px;max-width:640px;}
+  label.field-label{font-size:14px;color:var(--bark);font-weight:600;margin-bottom:6px;display:block;}
+  input[type=text],input[type=tel]{
+    width:100%;font-size:22px;padding:16px 18px;
+    border:2px solid var(--line);border-radius:12px;
+    background:#fff;color:var(--ink);outline:none;
+    transition:border-color .2s;font-family:inherit;
   }
-  .q-title{
-    font-size:26px;
-    font-weight:700;
-    color:var(--moss);
-    margin:6px 0 4px;
-  }
-  .q-hint{
-    font-size:14px;
-    color:#8a8369;
-    margin:0 0 22px;
-  }
-  .field-grid{
-    display:flex;
-    flex-direction:column;
-    gap:18px;
-    max-width:640px;
-  }
-  label.field-label{
-    font-size:14px;
-    color:var(--bark);
-    font-weight:600;
-    margin-bottom:6px;
-    display:block;
-  }
-  input[type=text], input[type=tel]{
-    width:100%;
-    font-size:22px;
-    padding:16px 18px;
-    border:2px solid var(--line);
-    border-radius:12px;
-    background:#fff;
-    color:var(--ink);
-    outline:none;
-    transition:border-color .2s;
-    font-family:inherit;
-  }
-  input[type=text]:focus, input[type=tel]:focus{
-    border-color:var(--ember);
-  }
+  input[type=text]:focus,input[type=tel]:focus{border-color:var(--ember);}
 
-  /* ===== トップページ ===== */
-  .top-wrap{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    gap:18px;
-  }
+  /* トップページ */
+  .top-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;}
   .top-wrap .top-ico{font-size:64px;}
   .top-wrap h2{font-size:30px;color:var(--moss);margin:0;}
   .top-wrap p{color:#8a8369;font-size:15px;max-width:480px;line-height:1.7;margin:0;}
-  .top-start-btn{
-    margin-top:10px;
-    font-size:20px;
-    font-weight:700;
-    padding:20px 52px;
-    border-radius:16px;
-    border:none;
-    background:var(--ember);
-    color:#fff;
-    cursor:pointer;
-  }
+  .top-start-btn{margin-top:10px;font-size:20px;font-weight:700;padding:20px 52px;border-radius:16px;border:none;background:var(--ember);color:#fff;cursor:pointer;}
   .top-start-btn:active{transform:scale(.97);}
 
-  /* ===== 選択カード ===== */
-  .card-grid{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:16px;
-    max-width:900px;
-  }
+  /* カード */
+  .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:900px;}
   .card-grid.cols-2{grid-template-columns:repeat(2,1fr);}
   .opt-card{
-    border:2px solid var(--line);
-    background:#fff;
-    border-radius:16px;
-    padding:22px 14px;
-    text-align:center;
-    cursor:pointer;
-    transition:border-color .15s, transform .1s, background .15s;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
-    min-height:140px;
-    justify-content:center;
+    border:2px solid var(--line);background:#fff;border-radius:16px;
+    padding:22px 14px;text-align:center;cursor:pointer;
+    transition:border-color .15s,transform .1s,background .15s;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    min-height:140px;justify-content:center;
   }
   .opt-card .ico{font-size:34px;line-height:1;}
   .opt-card .label{font-size:17px;font-weight:700;color:var(--ink);}
   .opt-card .desc{font-size:12px;color:#8a8369;}
   .opt-card .price{font-size:12px;color:var(--ember);font-weight:700;}
   .opt-card:active{transform:scale(.97);}
-  .opt-card.selected{
-    border-color:var(--ember);
-    background:#fdf1e9;
-  }
+  .opt-card.selected{border-color:var(--ember);background:#fdf1e9;}
   .opt-card.selected .label{color:var(--ember);}
 
-  /* ===== 人数 ステッパー ===== */
-  .stepper-list{
-    display:flex;
-    flex-direction:column;
-    gap:16px;
-    max-width:520px;
-  }
-  .stepper-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    background:#fff;
-    border:2px solid var(--line);
-    border-radius:14px;
-    padding:16px 20px;
-  }
+  /* ステッパー */
+  .stepper-list{display:flex;flex-direction:column;gap:16px;max-width:520px;}
+  .stepper-row{display:flex;align-items:center;justify-content:space-between;background:#fff;border:2px solid var(--line);border-radius:14px;padding:16px 20px;}
   .stepper-row .meta .label{font-size:18px;font-weight:700;}
   .stepper-row .meta .sub{font-size:12px;color:#8a8369;}
   .stepper-ctrl{display:flex;align-items:center;gap:18px;}
-  .stepper-btn{
-    width:46px;height:46px;border-radius:50%;
-    border:2px solid var(--moss);
-    background:var(--cream);
-    color:var(--moss);
-    font-size:24px;
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;
-    transition:background .15s;
-  }
+  .stepper-btn{width:46px;height:46px;border-radius:50%;border:2px solid var(--moss);background:var(--cream);color:var(--moss);font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;}
   .stepper-btn:active{background:var(--moss-light);color:#fff;}
   .stepper-val{font-size:26px;font-weight:700;min-width:40px;text-align:center;}
 
-  /* ===== ボタン(下部) ===== */
-  footer{
-    flex-shrink:0;
-    padding:16px 32px 22px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    border-top:1px solid var(--line);
-    background:var(--cream);
-  }
-  .btn{
-    font-size:17px;
-    font-weight:700;
-    padding:15px 30px;
-    border-radius:12px;
-    border:none;
-    cursor:pointer;
-    transition:opacity .15s, transform .1s;
-  }
+  /* フッター */
+  footer{flex-shrink:0;padding:16px 32px 22px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);background:var(--cream);}
+  .btn{font-size:17px;font-weight:700;padding:15px 30px;border-radius:12px;border:none;cursor:pointer;transition:opacity .15s,transform .1s;}
   .btn:active{transform:scale(.97);}
-  .btn-primary{
-    background:var(--ember);
-    color:#fff;
-  }
-  .btn-primary:disabled{
-    background:#d9c9b8;
-    cursor:not-allowed;
-  }
-  .btn-ghost{
-    background:transparent;
-    color:var(--bark);
-    border:2px solid var(--line);
-  }
+  .btn-primary{background:var(--ember);color:#fff;}
+  .btn-primary:disabled{background:#d9c9b8;cursor:not-allowed;}
+  .btn-ghost{background:transparent;color:var(--bark);border:2px solid var(--line);}
   .btn-ghost:disabled{opacity:0;pointer-events:none;}
 
-  /* ===== 確認画面 ===== */
-  .confirm-list{
-    border:1px solid var(--line);
-    border-radius:14px;
-    overflow:hidden;
-    max-width:640px;
-    background:#fff;
-  }
-  .confirm-row{
-    display:flex;
-    padding:14px 18px;
-    border-bottom:1px solid var(--line);
-    font-size:15px;
-  }
+  /* 確認・料金 */
+  .confirm-list{border:1px solid var(--line);border-radius:14px;overflow:hidden;max-width:640px;background:#fff;}
+  .confirm-row{display:flex;padding:14px 18px;border-bottom:1px solid var(--line);font-size:15px;}
   .confirm-row:last-child{border-bottom:none;}
   .confirm-row .k{width:140px;color:#8a8369;flex-shrink:0;}
   .confirm-row .v{font-weight:700;color:var(--ink);}
-
-  .price-box{
-    margin-top:18px;
-    max-width:640px;
-    background:#fff;
-    border:2px solid var(--ember);
-    border-radius:14px;
-    overflow:hidden;
-  }
-  .price-box .price-head{
-    background:var(--ember);
-    color:#fff;
-    padding:10px 18px;
-    font-size:14px;
-    font-weight:700;
-  }
-  .price-row{
-    display:flex;
-    justify-content:space-between;
-    padding:10px 18px;
-    font-size:14px;
-    border-bottom:1px solid var(--line);
-  }
+  .price-box{margin-top:18px;max-width:640px;background:#fff;border:2px solid var(--ember);border-radius:14px;overflow:hidden;}
+  .price-box .price-head{background:var(--ember);color:#fff;padding:10px 18px;font-size:14px;font-weight:700;}
+  .price-row{display:flex;justify-content:space-between;padding:10px 18px;font-size:14px;border-bottom:1px solid var(--line);}
   .price-row .pname{color:#5c5848;}
   .price-row .pval{font-weight:700;}
-  .price-row.total{
-    background:#fdf1e9;
-    font-size:18px;
-  }
+  .price-row.total{background:#fdf1e9;font-size:18px;}
   .price-row.total .pname,.price-row.total .pval{color:var(--ember);font-weight:800;}
-  .price-note{
-    font-size:11px;color:#a39d86;padding:8px 18px 12px;
-  }
+  .price-note{font-size:11px;color:#a39d86;padding:8px 18px 12px;}
 
-  /* ===== サンキュー画面 ===== */
-  .thanks{
-    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;gap:10px;
-  }
+  /* サンキュー */
+  .thanks{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;}
   .thanks .big{font-size:54px;}
   .thanks h2{font-size:28px;color:var(--moss);margin:6px 0;}
   .thanks p{color:#8a8369;font-size:15px;}
-  .reset-bar{
-    margin-top:24px;font-size:13px;color:#b5ad94;
-  }
+  .reset-bar{margin-top:24px;font-size:13px;color:#b5ad94;}
 </style>
 </head>
 <body>
 <div id="app"></div>
 
 <script>
-/* ====================================================================
-   ▼ カスタマイズ用の設定（このCONFIGの中だけ書き換えればだいたいOK）
-   ==================================================================== */
-const CONFIG = {
+// ========================================================
+//  ▼ GAS WebアプリのURL（ここだけ書き換えればOK）
+// ========================================================
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxn761azY4h4wPdkfKPelsmiN8K2mxoOe76CmE5CRYU2Hu3Zkc0mPUneUTSqkPzGUza/exec";
 
-  // 施設の種類。priceType で料金の計算方法を切り替えます。
-  //   'flat'        … 棟・室ごとの固定料金（人数が増えても変わらない。例：コテージ）
-  //   'campAuto'     … オートキャンプ（区画料金＋共同施設利用料）
-  //   'campFree'     … フリーキャンプ（区画料金＋共同施設利用料）
-  //   'perPerson'    … 1人あたりの料金（例：会議室・バーベキューを人数制にする場合）
-  //   'flatPerUse'   … 利用1回あたりの固定料金（例：会議室を時間貸しにする場合）
-  facilities: [
-    {
-      id:'cottage', label:'コテージ', ico:'🏠', desc:'宿泊棟', camp:false,
-      priceType:'flat',
-      price: 12000,           // 1棟あたりの基本料金（大人5名まで・追加料金なし）
-      priceNote:'1棟 12,000円（大人5名まで）',
-    },
-    {
-      id:'bbq', label:'バーベキュー', ico:'🍖', desc:'日帰り利用', camp:false,
-      priceType:'flatPerUse',
-      price: 5000,            // ▼仮の金額です。正式な金額が決まったら書き換えてください
-      priceNote:'1区画 5,000円（仮）',
-    },
-    {
-      id:'autocamp', label:'オートキャンプ', ico:'🚐', desc:'車横付け', camp:true,
-      priceType:'campAuto',
-      siteFeeStandard: 3000,  // A,B,C,D区画
-      siteFeeCheap: 2500,     // E,F区画
-      adultFee: 500,          // 共同施設利用料・大人(中学生以上)
-      childFee: 300,          // 共同施設利用料・小学生(小学生未満無料)
-      priceNote:'区画利用料3,000円（A〜D）/2,500円（E,F）＋共同施設利用料 大人500円・小学生300円',
-    },
-    {
-      id:'freecamp', label:'フリーキャンプ', ico:'⛺', desc:'区画自由', camp:true,
-      priceType:'campFree',
-      siteFee: 1000,
-      adultFee: 500,
-      childFee: 300,
-      priceNote:'区画利用料1,000円＋共同施設利用料 大人500円・小学生300円',
-    },
-    {
-      id:'meeting', label:'会議室', ico:'🗂️', desc:'研修・会議', camp:false,
-      priceType:'flatPerUse',
-      price: 3000,            // ▼仮の金額です。正式な金額が決まったら書き換えてください
-      priceNote:'1回 3,000円（仮）',
-    },
+// ========================================================
+//  ▼ 施設の定義（料金数値はスプレッドシートから取得するので、ここには書かない）
+// ========================================================
+const FACILITIES = [
+  { id:'cottage',   label:'コテージ',         ico:'🏠', desc:'宿泊棟',   camp:false, priceType:'flat',        priceKey:'cottage' },
+  { id:'bbq',       label:'バーベキュー',      ico:'🍖', desc:'日帰り利用',camp:false, priceType:'flatPerUse',  priceKey:'bbq' },
+  { id:'autocamp',  label:'オートキャンプ',    ico:'🚐', desc:'車横付け', camp:true,  priceType:'campAuto' },
+  { id:'freecamp',  label:'フリーキャンプ',    ico:'⛺', desc:'区画自由', camp:true,  priceType:'campFree',    priceKey:'freecamp' },
+  { id:'meeting',   label:'会議室',            ico:'🗂️', desc:'研修・会議',camp:false, priceType:'flatPerUse',  priceKey:'meeting' },
+];
+
+const AUTOCAMP_SITES = [
+  { id:'standard', label:'A・B・C・D区画', priceKey:'autocamp_std' },
+  { id:'cheap',    label:'E・F区画',       priceKey:'autocamp_cheap' },
+];
+
+const RESERVATION_METHODS = [
+  { id:'web',   label:'ネット予約', ico:'💻' },
+  { id:'phone', label:'電話予約',   ico:'☎️' },
+];
+
+const PAYMENT_METHODS = {
+  web:   [
+    { id:'web_paid',    label:'ネットで決済済み', ico:'✅' },
+    { id:'onsite_card', label:'現地でカード払い', ico:'💳' },
+    { id:'onsite_cash', label:'現地で現金払い',   ico:'💴' },
   ],
-
-  // オートキャンプの区画ランク（A〜D＝標準、E,F＝割安）を選んでもらうための選択肢
-  autocampSiteOptions: [
-    { id:'standard', label:'A・B・C・D区画', fee:3000 },
-    { id:'cheap',    label:'E・F区画',       fee:2500 },
+  phone: [
+    { id:'onsite_cash', label:'現地で現金払い', ico:'💴' },
+    { id:'onsite_card', label:'現地でカード払い', ico:'💳' },
   ],
-
-  // 予約方法
-  reservationMethods: [
-    { id:'web',   label:'ネット予約', ico:'💻' },
-    { id:'phone', label:'電話予約',   ico:'☎️' },
-  ],
-
-  // 支払い方法（予約方法ごとに変える。銀行振込は削除済み）
-  paymentMethods: {
-    web:   [
-      { id:'web_paid',   label:'ネットで決済済み', ico:'✅' },
-      { id:'onsite_card',label:'現地でカード払い', ico:'💳' },
-      { id:'onsite_cash',label:'現地で現金払い',   ico:'💴' },
-    ],
-    phone: [
-      { id:'onsite_cash', label:'現地で現金払い', ico:'💴' },
-      { id:'onsite_card', label:'現地でカード払い', ico:'💳' },
-    ],
-  },
 };
 
-// ▼ スプレッドシートに保存するためのGAS WebアプリURL
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxn761azY4h4wPdkfKPelsmiN8K2mxoOe76CmE5CRYU2Hu3Zkc0mPUneUTSqkPzGUza/exec";
-/* ==================================================================== */
+// ========================================================
+//  状態管理
+// ========================================================
+let prices = {};  // スプレッドシートから取得した料金マスタ
 
 let state = {
   name:'', address:'', phone:'',
@@ -433,17 +196,148 @@ let state = {
   payment:'',
 };
 
-// ページの並び：①トップ ②お客様情報 ③人数 ④施設(必要ならキャンプ詳細) ⑤泊数 ⑥予約方法 ⑦支払い方法 → 確認
+let stepIndex = 0;
+
 function buildSteps(){
   const steps = ['top','customer','people','facility'];
-  const f = CONFIG.facilities.find(x=>x.id===state.facility);
+  const f = FACILITIES.find(x=>x.id===state.facility);
   if(f && f.camp) steps.push('campDetail');
   steps.push('nights','reservation','payment','confirm');
   return steps;
 }
 
-let stepIndex = 0;
+// ========================================================
+//  起動時：GASから料金マスタを取得してからトップを表示
+// ========================================================
+async function init(){
+  showLoading();
+  try{
+    // GASのdoGet()を呼んで料金を取得
+    const res = await fetch(GAS_URL, { method:'GET', mode:'cors' });
+    const json = await res.json();
+    if(json.ok && json.prices) prices = json.prices;
+  }catch(e){
+    // 料金取得に失敗してもフォームは起動する（料金表示が「—」になるだけ）
+    console.warn('料金マスタの取得に失敗しました。スプレッドシートの料金は表示されません。', e);
+  }
+  stepIndex = 0;
+  render();
+}
 
+function showLoading(){
+  document.getElementById('app').innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>起動中です…</p>
+    </div>`;
+}
+
+// ========================================================
+//  料金計算
+// ========================================================
+function calcPrice(){
+  const f = FACILITIES.find(x=>x.id===state.facility);
+  if(!f) return { lines:[], total:0 };
+  const lines = [];
+  let total = 0;
+  const nights = Math.max(state.nights, 1);
+
+  const get = key => prices[key] ?? null;
+  const yen = n => n !== null ? '¥' + Number(n).toLocaleString('ja-JP') : '—';
+
+  if(f.priceType==='flat'){
+    const fee = get(f.priceKey);
+    const sub = fee !== null ? fee * nights : null;
+    lines.push({ name:`${f.label}（1棟） × ${nights}泊`, val: sub });
+    if(sub !== null) total += sub;
+
+  }else if(f.priceType==='flatPerUse'){
+    const fee = get(f.priceKey);
+    lines.push({ name:`${f.label} 利用料`, val: fee });
+    if(fee !== null) total += fee;
+
+  }else if(f.priceType==='campAuto'){
+    const siteOpt = AUTOCAMP_SITES.find(o=>o.id===state.autocampSite) || AUTOCAMP_SITES[0];
+    const siteFee = get(siteOpt.priceKey);
+    const siteSub = siteFee !== null ? siteFee * nights : null;
+    lines.push({ name:`区画利用料（${siteOpt.label}） × ${nights}泊`, val: siteSub });
+    if(siteSub !== null) total += siteSub;
+
+    if(state.adults>0){
+      const fee = get('camp_adult');
+      const sub = fee !== null ? fee * state.adults * nights : null;
+      lines.push({ name:`共同施設利用料・大人 ${state.adults}名 × ${nights}泊`, val: sub });
+      if(sub !== null) total += sub;
+    }
+    if(state.children>0){
+      const fee = get('camp_child');
+      const sub = fee !== null ? fee * state.children * nights : null;
+      lines.push({ name:`共同施設利用料・小学生 ${state.children}名 × ${nights}泊`, val: sub });
+      if(sub !== null) total += sub;
+    }
+    if(state.infants>0){
+      lines.push({ name:`幼児（小学生未満） ${state.infants}名`, val: 0 });
+    }
+
+  }else if(f.priceType==='campFree'){
+    const fee = get(f.priceKey);
+    const sub = fee !== null ? fee * nights : null;
+    lines.push({ name:`区画利用料 × ${nights}泊`, val: sub });
+    if(sub !== null) total += sub;
+
+    if(state.adults>0){
+      const aFee = get('camp_adult');
+      const sub = aFee !== null ? aFee * state.adults * nights : null;
+      lines.push({ name:`共同施設利用料・大人 ${state.adults}名 × ${nights}泊`, val: sub });
+      if(sub !== null) total += sub;
+    }
+    if(state.children>0){
+      const cFee = get('camp_child');
+      const sub = cFee !== null ? cFee * state.children * nights : null;
+      lines.push({ name:`共同施設利用料・小学生 ${state.children}名 × ${nights}泊`, val: sub });
+      if(sub !== null) total += sub;
+    }
+    if(state.infants>0){
+      lines.push({ name:`幼児（小学生未満） ${state.infants}名`, val: 0 });
+    }
+  }
+
+  return {
+    lines: lines.map(l => ({ ...l, display: l.val !== null ? yen(l.val) : '—' })),
+    total
+  };
+}
+
+function yenFmt(n){ return '¥' + Number(n).toLocaleString('ja-JP'); }
+
+// ========================================================
+//  施設カードに表示する料金テキストを生成
+// ========================================================
+function facilityPriceNote(f){
+  const get = key => prices[key];
+  if(f.priceType==='flat'){
+    const fee = get(f.priceKey);
+    return fee != null ? `1棟 ${yenFmt(fee)}/泊` : '料金は係員にご確認ください';
+  }
+  if(f.priceType==='flatPerUse'){
+    const fee = get(f.priceKey);
+    return fee != null ? `利用料 ${yenFmt(fee)}` : '料金は係員にご確認ください';
+  }
+  if(f.priceType==='campAuto'){
+    const s = get('autocamp_std'), c = get('autocamp_cheap');
+    if(s != null && c != null) return `${yenFmt(s)}〜${yenFmt(c)}/区画/泊＋施設利用料`;
+    return '料金は係員にご確認ください';
+  }
+  if(f.priceType==='campFree'){
+    const fee = get(f.priceKey);
+    return fee != null ? `${yenFmt(fee)}/泊＋施設利用料` : '料金は係員にご確認ください';
+  }
+  return '';
+}
+
+// ========================================================
+//  描画
+// ========================================================
 function render(){
   const steps = buildSteps();
   if(stepIndex > steps.length-1) stepIndex = steps.length-1;
@@ -453,129 +347,53 @@ function render(){
 
   const app = document.getElementById('app');
   app.innerHTML = `
-    <header style="${isTop?'display:none;':''}">
+    <header style="${isTop?'display:none':''}">
       <div class="brand">
         <h1>ご来場受付</h1>
         <div class="sub">STEP ${stepIndex} / ${total-1}</div>
       </div>
       <div class="progress-track">
         ${steps.filter(s=>s!=='top').map((s,i)=>{
-          const realIndex = steps.indexOf(s);
-          return `<div class="progress-seg ${realIndex<stepIndex?'done':''} ${realIndex===stepIndex?'current':''}"><div class="fill"></div></div>`;
+          const ri = steps.indexOf(s);
+          return `<div class="progress-seg ${ri<stepIndex?'done':''} ${ri===stepIndex?'current':''}"><div class="fill"></div></div>`;
         }).join('')}
       </div>
       <div class="step-label">${stepLabel(key)}</div>
     </header>
     <main><div class="stage active" id="stage">${renderStage(key)}</div></main>
-    <footer style="${isTop?'display:none;':''}">
-      <button class="btn btn-ghost" id="backBtn" ${stepIndex===0?'disabled':''} onclick="goBack()">戻る</button>
-      <button class="btn btn-primary" id="nextBtn" onclick="goNext()">${key==='confirm' ? 'この内容で受付する' : '次へ'}</button>
-    </footer>
-  `;
+    <footer style="${isTop?'display:none':''}">
+      <button class="btn btn-ghost" ${stepIndex===0?'disabled':''} onclick="goBack()">戻る</button>
+      <button class="btn btn-primary" id="nextBtn" onclick="goNext()">${key==='confirm'?'この内容で受付する':'次へ'}</button>
+    </footer>`;
   wireStage(key);
   updateNextEnabled(key);
 }
 
 function stepLabel(key){
-  return ({
-    customer:'お客様情報', people:'ご利用人数', facility:'ご利用施設', campDetail:'キャンプのご利用詳細',
-    nights:'宿泊数', reservation:'ご予約方法', payment:'お支払い方法', confirm:'内容のご確認'
-  })[key] || '';
+  return ({customer:'お客様情報',people:'ご利用人数',facility:'ご利用施設',campDetail:'キャンプのご利用詳細',nights:'宿泊数',reservation:'ご予約方法',payment:'お支払い方法',confirm:'内容のご確認'})[key]||'';
 }
 
-/* ====================== 料金計算 ====================== */
-function calcPrice(){
-  const f = CONFIG.facilities.find(x=>x.id===state.facility);
-  if(!f) return { lines:[], total:0 };
-  const lines = [];
-  let total = 0;
-  const nights = Math.max(state.nights, 1);
-
-  if(f.priceType==='flat'){
-    const sub = f.price * nights;
-    lines.push({ name:`${f.label}（1棟）× ${nights}泊`, val: sub });
-    total += sub;
-
-  } else if(f.priceType==='flatPerUse'){
-    const sub = f.price;
-    lines.push({ name:`${f.label}利用料`, val: sub });
-    total += sub;
-
-  } else if(f.priceType==='campAuto'){
-    const siteOpt = CONFIG.autocampSiteOptions.find(o=>o.id===state.autocampSite) || CONFIG.autocampSiteOptions[0];
-    const siteSub = siteOpt.fee * nights;
-    lines.push({ name:`区画利用料（${siteOpt.label}）× ${nights}泊`, val: siteSub });
-    total += siteSub;
-
-    if(state.adults>0){
-      const sub = f.adultFee * state.adults * nights;
-      lines.push({ name:`共同施設利用料・大人 ${state.adults}名 × ${nights}泊`, val: sub });
-      total += sub;
-    }
-    if(state.children>0){
-      const sub = f.childFee * state.children * nights;
-      lines.push({ name:`共同施設利用料・小学生 ${state.children}名 × ${nights}泊`, val: sub });
-      total += sub;
-    }
-    if(state.infants>0){
-      lines.push({ name:`幼児（小学生未満） ${state.infants}名`, val: 0 });
-    }
-
-  } else if(f.priceType==='campFree'){
-    const siteSub = f.siteFee * nights;
-    lines.push({ name:`区画利用料 × ${nights}泊`, val: siteSub });
-    total += siteSub;
-
-    if(state.adults>0){
-      const sub = f.adultFee * state.adults * nights;
-      lines.push({ name:`共同施設利用料・大人 ${state.adults}名 × ${nights}泊`, val: sub });
-      total += sub;
-    }
-    if(state.children>0){
-      const sub = f.childFee * state.children * nights;
-      lines.push({ name:`共同施設利用料・小学生 ${state.children}名 × ${nights}泊`, val: sub });
-      total += sub;
-    }
-    if(state.infants>0){
-      lines.push({ name:`幼児（小学生未満） ${state.infants}名`, val: 0 });
-    }
-
-  } else if(f.priceType==='perPerson'){
-    const sub = f.price * (state.adults + state.children);
-    lines.push({ name:`${f.label} ${state.adults+state.children}名`, val: sub });
-    total += sub;
-  }
-
-  return { lines, total };
-}
-
-function yen(n){ return '¥' + n.toLocaleString('ja-JP'); }
-
-/* ====================== 各ページの中身 ====================== */
 function renderStage(key){
   switch(key){
-
-    // ① トップページ
     case 'top': return `
       <div class="top-wrap">
         <div class="top-ico">⛺🏠</div>
         <h2>ご来場ありがとうございます</h2>
-        <p>こちらの端末でチェックインの受付を行います。<br>画面の案内に沿って、いくつかの項目をご入力ください。</p>
+        <p>こちらの端末でチェックインの受付を行います。<br>画面の案内に沿っていくつかの項目をご入力ください。</p>
         <button class="top-start-btn" onclick="startFlow()">受付をはじめる</button>
       </div>`;
 
-    // ② お客様情報（名前・住所・電話番号）
     case 'customer': return `
       <div class="q-title">お客様情報をご入力ください</div>
       <div class="q-hint">代表者の方の情報をご入力ください</div>
       <div class="field-grid">
         <div>
           <label class="field-label">宿泊者名</label>
-          <input type="text" id="in_name" placeholder="例：山田 太郎" value="${escapeHtml(state.name)}">
+          <input type="text" id="in_name" placeholder="例：山田 太郎" value="${escapeHtml(state.name)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <div>
           <label class="field-label">ご住所</label>
-          <input type="text" id="in_address" placeholder="例：長野県東筑摩郡生坂村〇〇" value="${escapeHtml(state.address)}">
+          <input type="text" id="in_address" placeholder="例：長野県東筑摩郡生坂村〇〇" value="${escapeHtml(state.address)}" autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
         <div>
           <label class="field-label">お電話番号</label>
@@ -583,7 +401,6 @@ function renderStage(key){
         </div>
       </div>`;
 
-    // ③ 宿泊人数
     case 'people': return `
       <div class="q-title">ご利用人数を選んでください</div>
       <div class="q-hint">＋／－ボタンで人数を調整してください</div>
@@ -593,80 +410,77 @@ function renderStage(key){
         ${stepperRow('infants','幼児','未就学児')}
       </div>`;
 
-    // ④ ご利用の施設
     case 'facility': return `
       <div class="q-title">ご利用の施設を選んでください</div>
       <div class="q-hint">タップして選択してください</div>
       <div class="card-grid">
-        ${CONFIG.facilities.map(f=>`
+        ${FACILITIES.map(f=>`
           <div class="opt-card ${state.facility===f.id?'selected':''}" data-val="${f.id}">
             <div class="ico">${f.ico}</div>
             <div class="label">${f.label}</div>
             <div class="desc">${f.desc}</div>
-            <div class="price">${f.priceNote}</div>
+            <div class="price">${facilityPriceNote(f)}</div>
           </div>`).join('')}
       </div>`;
 
-    // キャンプ詳細（オート／フリーを選んだ場合のみ表示）
-    case 'campDetail': {
-      const f = CONFIG.facilities.find(x=>x.id===state.facility);
+    case 'campDetail':{
+      const f = FACILITIES.find(x=>x.id===state.facility);
       const isAuto = f && f.id==='autocamp';
       return `
       <div class="q-title">キャンプのご利用について</div>
       <div class="q-hint">分かる範囲でご入力ください（あとで係員が確認します）</div>
       <div class="field-grid">
-        ${isAuto ? `
+        ${isAuto?`
         <div>
           <label class="field-label">ご希望の区画</label>
           <div class="card-grid cols-2" style="max-width:480px;">
-            ${CONFIG.autocampSiteOptions.map(o=>`
-              <div class="opt-card ${state.autocampSite===o.id?'selected':''}" data-val="${o.id}" data-group="autocampSite">
+            ${AUTOCAMP_SITES.map(o=>{
+              const fee = prices[o.priceKey];
+              return `<div class="opt-card ${state.autocampSite===o.id?'selected':''}" data-val="${o.id}" data-group="autocampSite">
                 <div class="label">${o.label}</div>
-                <div class="price">${yen(o.fee)}/区画/泊</div>
-              </div>`).join('')}
+                <div class="price">${fee!=null?yenFmt(fee)+'/区画/泊':'—'}</div>
+              </div>`;
+            }).join('')}
           </div>
-        </div>` : ''}
+        </div>`:''}
         <div>
           <label class="field-label">お車のナンバー</label>
-          <input type="text" id="in_car" placeholder="例：松本 123 あ 12-34" value="${escapeHtml(state.campCarNumber)}">
+          <input type="text" id="in_car" placeholder="例：松本 123 あ 12-34" value="${escapeHtml(state.campCarNumber)}" autocomplete="off">
         </div>
         <div>
           <label class="field-label">テント・タープのサイズ／数</label>
-          <input type="text" id="in_tent" placeholder="例：テント1・タープ1" value="${escapeHtml(state.campTent)}">
+          <input type="text" id="in_tent" placeholder="例：テント1・タープ1" value="${escapeHtml(state.campTent)}" autocomplete="off">
         </div>
         <div>
           <label class="field-label">ペット同伴</label>
-          <input type="text" id="in_pet" placeholder="例：犬1匹（小型犬）／なし" value="${escapeHtml(state.campPet)}">
+          <input type="text" id="in_pet" placeholder="例：犬1匹（小型犬）／なし" value="${escapeHtml(state.campPet)}" autocomplete="off">
         </div>
         <div>
           <label class="field-label">焚き火のご利用</label>
-          <input type="text" id="in_fire" placeholder="例：あり／なし" value="${escapeHtml(state.campFire)}">
+          <input type="text" id="in_fire" placeholder="例：あり／なし" value="${escapeHtml(state.campFire)}" autocomplete="off">
         </div>
       </div>`;
     }
 
-    // ⑤ 何泊
     case 'nights': return `
       <div class="q-title">何泊されますか？</div>
       <div class="q-hint">日帰りの場合は0泊を選んでください</div>
       <div class="stepper-list">
-        ${stepperRow('nights','宿泊数','泊', 0)}
+        ${stepperRow('nights','宿泊数','泊',0)}
       </div>`;
 
-    // ⑥ 予約方法
     case 'reservation': return `
       <div class="q-title">ご予約方法を選んでください</div>
       <div class="card-grid cols-2">
-        ${CONFIG.reservationMethods.map(r=>`
+        ${RESERVATION_METHODS.map(r=>`
           <div class="opt-card ${state.reservation===r.id?'selected':''}" data-val="${r.id}" data-group="reservation">
             <div class="ico">${r.ico}</div>
             <div class="label">${r.label}</div>
           </div>`).join('')}
       </div>`;
 
-    // ⑦ 支払い方法
-    case 'payment': {
-      const list = CONFIG.paymentMethods[state.reservation] || [];
+    case 'payment':{
+      const list = PAYMENT_METHODS[state.reservation]||[];
       return `
       <div class="q-title">お支払い方法を選んでください</div>
       <div class="card-grid cols-2">
@@ -678,11 +492,10 @@ function renderStage(key){
       </div>`;
     }
 
-    // 確認画面＋料金
-    case 'confirm': {
-      const f = CONFIG.facilities.find(x=>x.id===state.facility);
-      const r = CONFIG.reservationMethods.find(x=>x.id===state.reservation);
-      const p = (CONFIG.paymentMethods[state.reservation]||[]).find(x=>x.id===state.payment);
+    case 'confirm':{
+      const f = FACILITIES.find(x=>x.id===state.facility);
+      const r = RESERVATION_METHODS.find(x=>x.id===state.reservation);
+      const p = (PAYMENT_METHODS[state.reservation]||[]).find(x=>x.id===state.payment);
       const rows = [
         ['宿泊者名', state.name||'—'],
         ['ご住所', state.address||'—'],
@@ -690,23 +503,16 @@ function renderStage(key){
         ['人数', `大人 ${state.adults}名 / 子供 ${state.children}名 / 幼児 ${state.infants}名`],
         ['ご利用施設', f?f.label:'—'],
       ];
-      if(f && f.camp){
+      if(f&&f.camp){
         if(f.id==='autocamp'){
-          const siteOpt = CONFIG.autocampSiteOptions.find(o=>o.id===state.autocampSite);
-          rows.push(['ご希望の区画', siteOpt?siteOpt.label:'—']);
+          const s = AUTOCAMP_SITES.find(o=>o.id===state.autocampSite);
+          rows.push(['ご希望の区画', s?s.label:'—']);
         }
-        rows.push(['お車のナンバー', state.campCarNumber||'—']);
-        rows.push(['テント・タープ', state.campTent||'—']);
-        rows.push(['ペット同伴', state.campPet||'—']);
-        rows.push(['焚き火', state.campFire||'—']);
+        rows.push(['お車のナンバー',state.campCarNumber||'—'],['テント・タープ',state.campTent||'—'],['ペット同伴',state.campPet||'—'],['焚き火',state.campFire||'—']);
       }
-      rows.push(
-        ['宿泊数', `${state.nights} 泊`],
-        ['ご予約方法', r?r.label:'—'],
-        ['お支払い方法', p?p.label:'—'],
-      );
+      rows.push(['宿泊数',`${state.nights}泊`],['ご予約方法',r?r.label:'—'],['お支払い方法',p?p.label:'—']);
 
-      const { lines, total } = calcPrice();
+      const {lines,total} = calcPrice();
 
       return `
         <div class="q-title">この内容でよろしいですか？</div>
@@ -716,8 +522,8 @@ function renderStage(key){
         </div>
         <div class="price-box">
           <div class="price-head">ご利用料金（目安）</div>
-          ${lines.map(l=>`<div class="price-row"><div class="pname">${escapeHtml(l.name)}</div><div class="pval">${yen(l.val)}</div></div>`).join('')}
-          <div class="price-row total"><div class="pname">合計</div><div class="pval">${yen(total)}</div></div>
+          ${lines.map(l=>`<div class="price-row"><div class="pname">${escapeHtml(l.name)}</div><div class="pval">${l.display}</div></div>`).join('')}
+          <div class="price-row total"><div class="pname">合計</div><div class="pval">${yenFmt(total)}</div></div>
           <div class="price-note">※表示金額は目安です。詳細は係員にご確認ください。</div>
         </div>`;
     }
@@ -736,134 +542,94 @@ function stepperRow(key,label,sub,min=0){
     </div>`;
 }
 
-function startFlow(){
-  stepIndex = 1;
-  render();
-}
+function startFlow(){ stepIndex=1; render(); }
 
 function wireStage(key){
-  // テキスト入力
-  document.querySelectorAll('#stage input[type=text], #stage input[type=tel]').forEach(el=>{
+  document.querySelectorAll('#stage input[type=text],#stage input[type=tel]').forEach(el=>{
     el.addEventListener('input', e=>{
-      const map = {in_name:'name',in_address:'address',in_phone:'phone',in_car:'campCarNumber',in_tent:'campTent',in_pet:'campPet',in_fire:'campFire'};
-      const k = map[e.target.id];
-      if(k){ state[k]=e.target.value; updateNextEnabled(key); }
+      const map={in_name:'name',in_address:'address',in_phone:'phone',in_car:'campCarNumber',in_tent:'campTent',in_pet:'campPet',in_fire:'campFire'};
+      const k=map[e.target.id];
+      if(k){state[k]=e.target.value;updateNextEnabled(key);}
     });
   });
-  // カード選択
   document.querySelectorAll('#stage .opt-card').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const val = el.dataset.val;
-      const group = el.dataset.group;
-      if(key==='facility'){ state.facility = val; }
-      else if(group==='autocampSite'){ state.autocampSite = val; }
-      else if(group==='reservation'){ state.reservation = val; if(!(CONFIG.paymentMethods[val]||[]).find(p=>p.id===state.payment)) state.payment=''; }
-      else if(group==='payment'){ state.payment = val; }
+    el.addEventListener('click',()=>{
+      const val=el.dataset.val, group=el.dataset.group;
+      if(key==='facility') state.facility=val;
+      else if(group==='autocampSite') state.autocampSite=val;
+      else if(group==='reservation'){state.reservation=val;if(!(PAYMENT_METHODS[val]||[]).find(p=>p.id===state.payment))state.payment='';}
+      else if(group==='payment') state.payment=val;
       render();
     });
   });
-  // ステッパー
   document.querySelectorAll('#stage .stepper-btn').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const k = el.dataset.key;
-      const min = parseInt(el.dataset.min);
-      const d = parseInt(el.dataset.step);
-      let v = state[k] + d;
-      if(v < min) v = min;
-      if(v > 99) v = 99;
-      state[k] = v;
-      const span = document.getElementById('val_'+k);
-      if(span) span.textContent = v;
+    el.addEventListener('click',()=>{
+      const k=el.dataset.key, min=parseInt(el.dataset.min), d=parseInt(el.dataset.step);
+      let v=state[k]+d;
+      if(v<min)v=min; if(v>99)v=99;
+      state[k]=v;
+      const span=document.getElementById('val_'+k);
+      if(span)span.textContent=v;
       updateNextEnabled(key);
     });
   });
 }
 
 function updateNextEnabled(key){
-  const nextBtn = document.getElementById('nextBtn');
-  if(!nextBtn) return;
-  let ok = true;
-  if(key==='customer') ok = state.name.trim().length>0 && state.address.trim().length>0;
-  if(key==='facility') ok = !!state.facility;
-  if(key==='reservation') ok = !!state.reservation;
-  if(key==='payment') ok = !!state.payment;
-  nextBtn.disabled = !ok;
+  const btn=document.getElementById('nextBtn');
+  if(!btn)return;
+  let ok=true;
+  if(key==='customer') ok=state.name.trim().length>0&&state.address.trim().length>0;
+  if(key==='facility') ok=!!state.facility;
+  if(key==='reservation') ok=!!state.reservation;
+  if(key==='payment') ok=!!state.payment;
+  btn.disabled=!ok;
 }
 
-function goBack(){
-  if(stepIndex===0) return;
-  stepIndex--;
-  render();
-}
+function goBack(){ if(stepIndex===0)return; stepIndex--; render(); }
 
 async function goNext(){
-  const steps = buildSteps();
-  const key = steps[stepIndex];
-  if(key==='confirm'){
-    await submitEntry();
-    return;
-  }
-  if(stepIndex < steps.length-1){
-    stepIndex++;
-    render();
-  }
+  const steps=buildSteps(), key=steps[stepIndex];
+  if(key==='confirm'){await submitEntry();return;}
+  if(stepIndex<steps.length-1){stepIndex++;render();}
 }
 
 function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* ====================== 保存（GAS経由でスプレッドシートへ） ====================== */
 async function submitEntry(){
-  const nextBtn = document.getElementById('nextBtn');
-  nextBtn.disabled = true;
-  nextBtn.textContent = '送信中…';
-  const f = CONFIG.facilities.find(x=>x.id===state.facility);
-  const r = CONFIG.reservationMethods.find(x=>x.id===state.reservation);
-  const p = (CONFIG.paymentMethods[state.reservation]||[]).find(x=>x.id===state.payment);
-  const { total } = calcPrice();
+  const btn=document.getElementById('nextBtn');
+  btn.disabled=true; btn.textContent='送信中…';
+  const f=FACILITIES.find(x=>x.id===state.facility);
+  const r=RESERVATION_METHODS.find(x=>x.id===state.reservation);
+  const p=(PAYMENT_METHODS[state.reservation]||[]).find(x=>x.id===state.payment);
+  const {total}=calcPrice();
 
-  const entry = {
-    receivedAt: new Date().toISOString(),
-    name: state.name,
-    address: state.address,
-    phone: state.phone,
-    adults: state.adults,
-    children: state.children,
-    infants: state.infants,
-    facility: f ? f.label : '',
-    campCarNumber: state.campCarNumber,
-    campTent: state.campTent,
-    campPet: state.campPet,
-    campFire: state.campFire,
-    nights: state.nights,
-    reservation: r ? r.label : '',
-    payment: p ? p.label : '',
-    totalPrice: total,
+  const entry={
+    receivedAt:new Date().toISOString(),
+    name:state.name, address:state.address, phone:state.phone,
+    adults:state.adults, children:state.children, infants:state.infants,
+    facility:f?f.label:'',
+    campCarNumber:state.campCarNumber, campTent:state.campTent, campPet:state.campPet, campFire:state.campFire,
+    nights:state.nights,
+    reservation:r?r.label:'',
+    payment:p?p.label:'',
+    totalPrice:total,
   };
 
   try{
-    if(!GAS_URL || !GAS_URL.startsWith('http')){
-      throw new Error('GAS_URLが設定されていません。コード上部のGAS_URLにスプレッドシート連携用のURLを貼ってください。');
-    }
-    await fetch(GAS_URL, {
-      method:'POST',
-      mode:'no-cors',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(entry)
-    });
+    await fetch(GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(entry)});
     showThanks();
   }catch(e){
     console.error(e);
-    alert('保存中にエラーが発生しました。係員にお声がけください。\n詳細: ' + e.message);
-    nextBtn.disabled = false;
-    nextBtn.textContent = 'この内容で受付する';
+    alert('保存中にエラーが発生しました。係員にお声がけください。\n詳細: '+e.message);
+    btn.disabled=false; btn.textContent='この内容で受付する';
   }
 }
 
 function showThanks(){
-  const app = document.getElementById('app');
-  app.innerHTML = `
+  document.getElementById('app').innerHTML=`
     <div class="thanks">
       <div class="big">⛺✅</div>
       <h2>受付が完了しました</h2>
@@ -871,22 +637,23 @@ function showThanks(){
       <div class="reset-bar" id="resetMsg">8秒後に最初の画面に戻ります</div>
       <button class="btn btn-primary" style="margin-top:18px" onclick="resetAll()">次のお客様の受付をする</button>
     </div>`;
-  let sec = 8;
-  const timer = setInterval(()=>{
+  let sec=8;
+  const timer=setInterval(()=>{
     sec--;
-    const m = document.getElementById('resetMsg');
-    if(m) m.textContent = `${sec}秒後に最初の画面に戻ります`;
-    if(sec<=0){ clearInterval(timer); resetAll(); }
+    const m=document.getElementById('resetMsg');
+    if(m)m.textContent=`${sec}秒後に最初の画面に戻ります`;
+    if(sec<=0){clearInterval(timer);resetAll();}
   },1000);
 }
 
 function resetAll(){
-  state = { name:'',address:'',phone:'',adults:1,children:0,infants:0,facility:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',autocampSite:'standard',nights:1,reservation:'',payment:'' };
-  stepIndex = 0;
-  render();
+  state={name:'',address:'',phone:'',adults:1,children:0,infants:0,facility:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',autocampSite:'standard',nights:1,reservation:'',payment:''};
+  stepIndex=0;
+  init();  // 料金を再取得してトップに戻る
 }
 
-render();
+// 起動
+init();
 </script>
 </body>
 </html>

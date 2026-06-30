@@ -43,7 +43,7 @@
   .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:900px;}
   .card-grid.cols-2{grid-template-columns:repeat(2,1fr);}
   .card-grid.cols-2-sm{grid-template-columns:repeat(2,1fr);max-width:520px;}
-  .opt-card{border:2px solid var(--line);background:#fff;border-radius:16px;padding:22px 14px;text-align:center;cursor:pointer;transition:border-color .15s,transform .1s,background .15s;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:130px;justify-content:center;}
+  .opt-card{border:2px solid var(--line);background:#fff;border-radius:16px;padding:22px 14px;text-align:center;cursor:pointer;transition:border-color .15s,transform .1s,background .15s;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:130px;justify-content:center;position:relative;}
   .opt-card .ico{font-size:34px;line-height:1;}
   .opt-card .label{font-size:17px;font-weight:700;color:var(--ink);}
   .opt-card .desc{font-size:12px;color:#8a8369;}
@@ -51,6 +51,14 @@
   .opt-card:active{transform:scale(.97);}
   .opt-card.selected{border-color:var(--ember);background:#fdf1e9;}
   .opt-card.selected .label{color:var(--ember);}
+  /* 複数選択用チェックマーク */
+  .opt-card .check-badge{
+    display:none;position:absolute;top:10px;right:10px;
+    width:24px;height:24px;border-radius:50%;
+    background:var(--ember);color:#fff;font-size:14px;
+    align-items:center;justify-content:center;font-weight:700;
+  }
+  .opt-card.selected .check-badge{display:flex;}
   .stepper-list{display:flex;flex-direction:column;gap:16px;max-width:520px;}
   .stepper-row{display:flex;align-items:center;justify-content:space-between;background:#fff;border:2px solid var(--line);border-radius:14px;padding:16px 20px;}
   .stepper-row .meta .label{font-size:18px;font-weight:700;}
@@ -84,6 +92,12 @@
   .thanks h2{font-size:28px;color:var(--moss);margin:6px 0;}
   .thanks p{color:#8a8369;font-size:15px;}
   .reset-bar{margin-top:24px;font-size:13px;color:#b5ad94;}
+  /* 施設ステップの「選択中バッジ」 */
+  .facility-selected-bar{
+    margin-bottom:14px;padding:10px 16px;
+    background:#fdf1e9;border:1px solid var(--ember);border-radius:10px;
+    font-size:13px;color:var(--ember);font-weight:700;max-width:900px;
+  }
 </style>
 </head>
 <body>
@@ -111,15 +125,11 @@ const AUTOCAMP_SITES = [
   { id:'cheap',    label:'E・F区画',       priceKey:'autocamp_cheap' },
 ];
 
-// キャンプ：日帰り or 宿泊
 const CAMP_STAY_TYPES = [
   { id:'daytrip', label:'日帰り', ico:'☀️', desc:'当日のみ' },
   { id:'stay',    label:'宿　泊', ico:'🌙', desc:'1泊以上' },
 ];
 
-// ========================================================
-//  支払い方法（予約方法ごと）
-// ========================================================
 const RESERVATION_METHODS = [
   { id:'web',   label:'ネット予約', ico:'💻' },
   { id:'phone', label:'電話予約',   ico:'☎️' },
@@ -145,8 +155,8 @@ let prices = {};
 let state = {
   name:'', address:'', phone:'',
   adults:1, children:0, infants:0,
-  facility:'',
-  campStayType:'',       // 'daytrip' or 'stay'（キャンプのみ）
+  facilities:[],           // ← 複数選択に変更（配列）
+  campStayType:'',
   campCarNumber:'', campTent:'', campPet:'', campFire:'',
   autocampSite:'standard',
   nights:1,
@@ -155,15 +165,26 @@ let state = {
 };
 
 // ========================================================
-//  ステップ構築（選択内容によって動的に変わる）
+//  ヘルパー：選択中の施設オブジェクト一覧
+// ========================================================
+function selectedFacilities(){
+  return state.facilities.map(id => FACILITIES.find(f => f.id === id)).filter(Boolean);
+}
+
+// キャンプ系施設が含まれているか
+function hasCampFacility(){
+  return selectedFacilities().some(f => f.camp);
+}
+
+// ========================================================
+//  ステップ構築
 // ========================================================
 function buildSteps(){
   const steps = ['top','customer','people','facility'];
-  const f = FACILITIES.find(x=>x.id===state.facility);
-  if(f && f.camp){
-    steps.push('campStayType');          // 日帰り／宿泊の選択
-    steps.push('campDetail');            // キャンプ詳細
-    if(state.campStayType !== 'daytrip') steps.push('nights'); // 宿泊のみ泊数を聞く
+  if(hasCampFacility()){
+    steps.push('campStayType');
+    steps.push('campDetail');
+    if(state.campStayType !== 'daytrip') steps.push('nights');
   } else {
     steps.push('nights');
   }
@@ -183,7 +204,7 @@ async function init(){
     const json = await res.json();
     if(json.ok && json.prices) prices = json.prices;
   }catch(e){
-    console.warn('料金マスタの取得に失敗しました。スプレッドシートの料金は表示されません。', e);
+    console.warn('料金マスタの取得に失敗しました。', e);
   }
   stepIndex = 0;
   render();
@@ -198,16 +219,17 @@ function showLoading(){
 }
 
 // ========================================================
-//  料金計算
+//  料金計算（複数施設対応）
 // ========================================================
 function calcPrice(){
-  const f = FACILITIES.find(x=>x.id===state.facility);
-  if(!f) return { lines:[], total:0 };
+  const fList = selectedFacilities();
+  if(fList.length === 0) return { lines:[], total:0 };
+
   const lines = [];
   let total = 0;
   const isDay = state.campStayType === 'daytrip';
-  const nights = (f.camp && isDay) ? 1 : Math.max(state.nights, 1);
-  const nightLabel = (f.camp && isDay) ? '（日帰り）' : `× ${nights}泊`;
+  const nights = (hasCampFacility() && isDay) ? 1 : Math.max(state.nights, 1);
+  const nightLabel = (hasCampFacility() && isDay) ? '（日帰り）' : `× ${nights}泊`;
 
   const get = key => prices[key] ?? null;
   const fmt = n => n !== null ? '¥' + Number(n).toLocaleString('ja-JP') : '—';
@@ -218,27 +240,29 @@ function calcPrice(){
     if(val !== null) total += val;
   };
 
-  if(f.priceType === 'flat'){
-    const fee = get(f.priceKey);
-    addLine(`${f.label}（1棟）${nightLabel}`, fee !== null ? fee : null, fee !== null ? nights : 1);
+  for(const f of fList){
+    if(f.priceType === 'flat'){
+      const fee = get(f.priceKey);
+      addLine(`${f.label}（1棟）${nightLabel}`, fee !== null ? fee : null, fee !== null ? nights : 1);
 
-  } else if(f.priceType === 'flatPerUse'){
-    addLine(`${f.label} 利用料`, get(f.priceKey));
+    } else if(f.priceType === 'flatPerUse'){
+      addLine(`${f.label} 利用料`, get(f.priceKey));
 
-  } else if(f.priceType === 'campAuto'){
-    const siteOpt = AUTOCAMP_SITES.find(o=>o.id===state.autocampSite) || AUTOCAMP_SITES[0];
-    const siteFee = get(siteOpt.priceKey);
-    addLine(`区画利用料（${siteOpt.label}）${nightLabel}`, siteFee !== null ? siteFee : null, siteFee !== null ? nights : 1);
-    if(state.adults > 0) addLine(`共同施設利用料・大人 ${state.adults}名 ${nightLabel}`, get('camp_adult') !== null ? get('camp_adult') * state.adults : null, nights);
-    if(state.children > 0) addLine(`共同施設利用料・小学生 ${state.children}名 ${nightLabel}`, get('camp_child') !== null ? get('camp_child') * state.children : null, nights);
-    if(state.infants > 0) lines.push({ name:`幼児（小学生未満） ${state.infants}名`, display:'¥0' });
+    } else if(f.priceType === 'campAuto'){
+      const siteOpt = AUTOCAMP_SITES.find(o=>o.id===state.autocampSite) || AUTOCAMP_SITES[0];
+      const siteFee = get(siteOpt.priceKey);
+      addLine(`区画利用料（${siteOpt.label}）${nightLabel}`, siteFee !== null ? siteFee : null, siteFee !== null ? nights : 1);
+      if(state.adults > 0) addLine(`共同施設利用料・大人 ${state.adults}名 ${nightLabel}`, get('camp_adult') !== null ? get('camp_adult') * state.adults : null, nights);
+      if(state.children > 0) addLine(`共同施設利用料・小学生 ${state.children}名 ${nightLabel}`, get('camp_child') !== null ? get('camp_child') * state.children : null, nights);
+      if(state.infants > 0) lines.push({ name:`幼児（小学生未満） ${state.infants}名`, display:'¥0' });
 
-  } else if(f.priceType === 'campFree'){
-    const fee = get(f.priceKey);
-    addLine(`区画利用料${nightLabel}`, fee !== null ? fee : null, fee !== null ? nights : 1);
-    if(state.adults > 0) addLine(`共同施設利用料・大人 ${state.adults}名 ${nightLabel}`, get('camp_adult') !== null ? get('camp_adult') * state.adults : null, nights);
-    if(state.children > 0) addLine(`共同施設利用料・小学生 ${state.children}名 ${nightLabel}`, get('camp_child') !== null ? get('camp_child') * state.children : null, nights);
-    if(state.infants > 0) lines.push({ name:`幼児（小学生未満） ${state.infants}名`, display:'¥0' });
+    } else if(f.priceType === 'campFree'){
+      const fee = get(f.priceKey);
+      addLine(`区画利用料${nightLabel}`, fee !== null ? fee : null, fee !== null ? nights : 1);
+      if(state.adults > 0) addLine(`共同施設利用料・大人 ${state.adults}名 ${nightLabel}`, get('camp_adult') !== null ? get('camp_adult') * state.adults : null, nights);
+      if(state.children > 0) addLine(`共同施設利用料・小学生 ${state.children}名 ${nightLabel}`, get('camp_child') !== null ? get('camp_child') * state.children : null, nights);
+      if(state.infants > 0) lines.push({ name:`幼児（小学生未満） ${state.infants}名`, display:'¥0' });
+    }
   }
 
   return { lines, total };
@@ -333,18 +357,29 @@ function renderStage(key){
         ${sRow('infants','幼児','未就学児')}
       </div>`;
 
-    case 'facility': return `
-      <div class="q-title">ご利用の施設を選んでください</div>
-      <div class="q-hint">タップして選択してください</div>
-      <div class="card-grid">
-        ${FACILITIES.map(f=>`
-          <div class="opt-card ${state.facility===f.id?'selected':''}" data-val="${f.id}">
-            <div class="ico">${f.ico}</div>
-            <div class="label">${f.label}</div>
-            <div class="desc">${f.desc}</div>
-            <div class="price">${facilityPriceNote(f)}</div>
-          </div>`).join('')}
-      </div>`;
+    case 'facility':{
+      const selectedLabels = selectedFacilities().map(f=>f.label);
+      const bar = state.facilities.length > 0
+        ? `<div class="facility-selected-bar">✅ 選択中：${selectedLabels.join('、')}（複数選択できます）</div>`
+        : `<div class="facility-selected-bar" style="background:#f7f3ea;border-color:var(--line);color:#8a8369;">施設をタップして選んでください（複数選択できます）</div>`;
+      return `
+        <div class="q-title">ご利用の施設を選んでください</div>
+        <div class="q-hint">複数の施設を同時にご利用の場合はすべて選んでください</div>
+        ${bar}
+        <div class="card-grid">
+          ${FACILITIES.map(f=>{
+            const sel = state.facilities.includes(f.id);
+            return `
+              <div class="opt-card ${sel?'selected':''}" data-val="${f.id}" data-group="facility">
+                <div class="check-badge">✓</div>
+                <div class="ico">${f.ico}</div>
+                <div class="label">${f.label}</div>
+                <div class="desc">${f.desc}</div>
+                <div class="price">${facilityPriceNote(f)}</div>
+              </div>`;
+          }).join('')}
+        </div>`;
+    }
 
     case 'campStayType': return `
       <div class="q-title">日帰りですか？宿泊ですか？</div>
@@ -359,13 +394,12 @@ function renderStage(key){
       </div>`;
 
     case 'campDetail':{
-      const f = FACILITIES.find(x=>x.id===state.facility);
-      const isAuto = f && f.id==='autocamp';
+      const hasAuto = state.facilities.includes('autocamp');
       return `
       <div class="q-title">キャンプのご利用について</div>
       <div class="q-hint">分かる範囲でご入力ください（あとで係員が確認します）</div>
       <div class="field-grid">
-        ${isAuto?`
+        ${hasAuto?`
         <div>
           <label class="field-label">ご希望の区画</label>
           <div class="card-grid cols-2-sm">
@@ -428,7 +462,7 @@ function renderStage(key){
     }
 
     case 'confirm':{
-      const f = FACILITIES.find(x=>x.id===state.facility);
+      const fList = selectedFacilities();
       const r = RESERVATION_METHODS.find(x=>x.id===state.reservation);
       const p = (PAYMENT_METHODS[state.reservation]||[]).find(x=>x.id===state.payment);
       const campStay = CAMP_STAY_TYPES.find(x=>x.id===state.campStayType);
@@ -437,19 +471,17 @@ function renderStage(key){
         ['ご住所', state.address||'—'],
         ['お電話番号', state.phone||'—'],
         ['人数', `大人 ${state.adults}名 / 子供 ${state.children}名 / 幼児 ${state.infants}名`],
-        ['ご利用施設', f?f.label:'—'],
+        ['ご利用施設', fList.length > 0 ? fList.map(f=>f.label).join('、') : '—'],
       ];
-      if(f && f.camp){
+      if(hasCampFacility()){
         rows.push(['ご利用区分', campStay?campStay.label:'—']);
-        if(f.id==='autocamp'){
+        if(state.facilities.includes('autocamp')){
           const s = AUTOCAMP_SITES.find(o=>o.id===state.autocampSite);
           rows.push(['ご希望の区画', s?s.label:'—']);
         }
         rows.push(['お車のナンバー',state.campCarNumber||'—'],['テント・タープ',state.campTent||'—'],['ペット同伴',state.campPet||'—'],['焚き火',state.campFire||'—']);
       }
-      if(state.campStayType !== 'daytrip'){
-        rows.push(['宿泊数', `${state.nights}泊`]);
-      } else if(f && f.camp){
+      if(state.campStayType === 'daytrip'){
         rows.push(['宿泊数', '日帰り']);
       } else {
         rows.push(['宿泊数', `${state.nights}泊`]);
@@ -502,12 +534,28 @@ function wireStage(key){
   document.querySelectorAll('#stage .opt-card').forEach(el=>{
     el.addEventListener('click',()=>{
       const val=el.dataset.val, group=el.dataset.group;
-      if(key==='facility'){ state.facility=val; state.campStayType=''; }
-      else if(group==='campStayType'){ state.campStayType=val; }
-      else if(group==='autocampSite'){ state.autocampSite=val; }
-      else if(group==='reservation'){ state.reservation=val; if(!(PAYMENT_METHODS[val]||[]).find(p=>p.id===state.payment)) state.payment=''; }
-      else if(group==='payment'){ state.payment=val; }
-      render();
+      if(group==='facility'){
+        // トグル：選択済みなら外す、未選択なら追加
+        const idx = state.facilities.indexOf(val);
+        if(idx >= 0){
+          state.facilities.splice(idx, 1);
+        } else {
+          state.facilities.push(val);
+        }
+        // キャンプ系が外れたらcampStayTypeをリセット
+        if(!hasCampFacility()) state.campStayType='';
+        render();
+      } else if(group==='campStayType'){
+        state.campStayType=val; render();
+      } else if(group==='autocampSite'){
+        state.autocampSite=val; render();
+      } else if(group==='reservation'){
+        state.reservation=val;
+        if(!(PAYMENT_METHODS[val]||[]).find(p=>p.id===state.payment)) state.payment='';
+        render();
+      } else if(group==='payment'){
+        state.payment=val; render();
+      }
     });
   });
   document.querySelectorAll('#stage .stepper-btn').forEach(el=>{
@@ -528,7 +576,7 @@ function updateNextEnabled(key){
   if(!btn)return;
   let ok=true;
   if(key==='customer') ok=state.name.trim().length>0&&state.address.trim().length>0;
-  if(key==='facility') ok=!!state.facility;
+  if(key==='facility') ok=state.facilities.length>0;
   if(key==='campStayType') ok=!!state.campStayType;
   if(key==='reservation') ok=!!state.reservation;
   if(key==='payment') ok=!!state.payment;
@@ -546,7 +594,7 @@ async function goNext(){
 async function submitEntry(){
   const btn=document.getElementById('nextBtn');
   btn.disabled=true; btn.textContent='送信中…';
-  const f=FACILITIES.find(x=>x.id===state.facility);
+  const fList=selectedFacilities();
   const r=RESERVATION_METHODS.find(x=>x.id===state.reservation);
   const p=(PAYMENT_METHODS[state.reservation]||[]).find(x=>x.id===state.payment);
   const campStay=CAMP_STAY_TYPES.find(x=>x.id===state.campStayType);
@@ -556,10 +604,10 @@ async function submitEntry(){
     receivedAt:new Date().toISOString(),
     name:state.name, address:state.address, phone:state.phone,
     adults:state.adults, children:state.children, infants:state.infants,
-    facility:f?f.label:'',
+    facility:fList.map(f=>f.label).join('、'),   // カンマ区切りで保存
     campStayType:campStay?campStay.label:'',
     campCarNumber:state.campCarNumber, campTent:state.campTent, campPet:state.campPet, campFire:state.campFire,
-    nights: (f&&f.camp&&state.campStayType==='daytrip') ? 0 : state.nights,
+    nights: (hasCampFacility()&&state.campStayType==='daytrip') ? 0 : state.nights,
     reservation:r?r.label:'',
     payment:p?p.label:'',
     totalPrice:total,
@@ -594,7 +642,7 @@ function showThanks(){
 }
 
 function resetAll(){
-  state={name:'',address:'',phone:'',adults:1,children:0,infants:0,facility:'',campStayType:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',autocampSite:'standard',nights:1,reservation:'',payment:''};
+  state={name:'',address:'',phone:'',adults:1,children:0,infants:0,facilities:[],campStayType:'',campCarNumber:'',campTent:'',campPet:'',campFire:'',autocampSite:'standard',nights:1,reservation:'',payment:''};
   stepIndex=0;
   init();
 }

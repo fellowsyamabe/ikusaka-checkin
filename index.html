@@ -137,13 +137,13 @@ const RESERVATION_METHODS = [
 
 const PAYMENT_METHODS = {
   web: [
-    { id:'onsite_cash', label:'現地で現金払い',     ico:'💴' },
-    { id:'onsite_card', label:'現地でカード払い',   ico:'💳' },
+    { id:'onsite_cash', label:'現金払い',         ico:'💴' },
+    { id:'paypay',      label:'PayPay',           ico:'📱' },
+    { id:'web_paid',    label:'ネットで決済済み', ico:'✅' },
   ],
   phone: [
-    { id:'onsite_cash', label:'現地で現金払い',     ico:'💴' },
-    { id:'paypay',      label:'PayPay',             ico:'📱' },
-    { id:'web_paid',    label:'ネットで決済済み',   ico:'✅' },
+    { id:'onsite_cash', label:'現金払い', ico:'💴' },
+    { id:'paypay',      label:'PayPay',   ico:'📱' },
   ],
 };
 
@@ -490,16 +490,18 @@ function renderStage(key){
 
       const {lines, total} = calcPrice();
       return `
-        <div class="q-title">この内容でよろしいですか？</div>
-        <div class="q-hint">内容をご確認のうえ「この内容で受付する」を押してください</div>
-        <div class="confirm-list">
-          ${rows.map(([k,v])=>`<div class="confirm-row"><div class="k">${k}</div><div class="v">${esc(String(v))}</div></div>`).join('')}
-        </div>
-        <div class="price-box">
-          <div class="price-head">ご利用料金（目安）</div>
-          ${lines.map(l=>`<div class="price-row"><div class="pname">${esc(l.name)}</div><div class="pval">${l.display}</div></div>`).join('')}
-          <div class="price-row total"><div class="pname">合計</div><div class="pval">${yenFmt(total)}</div></div>
-          <div class="price-note">※表示金額は目安です。詳細は係員にご確認ください。</div>
+        <div style="overflow-y:auto;flex:1;padding-bottom:8px;">
+          <div class="q-title">この内容でよろしいですか？</div>
+          <div class="q-hint">内容をご確認のうえ「この内容で受付する」を押してください</div>
+          <div class="confirm-list">
+            ${rows.map(([k,v])=>`<div class="confirm-row"><div class="k">${k}</div><div class="v">${esc(String(v))}</div></div>`).join('')}
+          </div>
+          <div class="price-box">
+            <div class="price-head">ご利用料金（目安）</div>
+            ${lines.map(l=>`<div class="price-row"><div class="pname">${esc(l.name)}</div><div class="pval">${l.display}</div></div>`).join('')}
+            <div class="price-row total"><div class="pname">合計</div><div class="pval">${yenFmt(total)}</div></div>
+            <div class="price-note">※表示金額は目安です。詳細は係員にご確認ください。</div>
+          </div>
         </div>`;
     }
   }
